@@ -8,6 +8,24 @@ from src.ingestion.embedder import Embedder
 from src.vectorstore.store import VectorStore
 from src.agent.graph_agent import CodeAgent
 
+DEMO_QUESTIONS = {
+    "tqdm": [
+        "How does tqdm calculate the estimated time remaining?",
+        "What calls the update method?",
+    ],
+    "requests": [
+        "How does the Session class handle redirects?",
+        "What calls the send method?",
+    ],
+    "flask": [
+        "How does Flask route a request to a view function?",
+        "What calls the dispatch_request method?",
+    ],
+    "httpx": [
+        "How does httpx handle connection pooling?",
+        "What calls the send method on the Client?",
+    ],
+}
 
 def clone_if_missing(name: str, url: str) -> Path:
     dest = REPOS_DIR / name
@@ -33,10 +51,7 @@ if __name__ == "__main__":
     embedder = Embedder()
     agent = CodeAgent(chunks, store, embedder)
 
-    questions = [
-        "How does tqdm calculate the estimated time remaining?",
-        "What calls the update method?",
-    ]
+    questions = DEMO_QUESTIONS.get(repo_name, ["Give a high-level summary of this codebase."])
 
     for q in questions:
         print(f"\n{'='*60}\nQuestion: {q}\n{'='*60}")

@@ -1,6 +1,8 @@
 from langgraph.graph import StateGraph, END
 from langchain_groq import ChatGroq
 from typing import List, Dict
+from tenacity import retry,stop_after_attempt,wait_exponential,retry_if_exception_type
+from groq import RateLimitError
 
 from src.config import GROQ_API_KEY, GROQ_MODEL, MAX_HOP_COUNT
 from src.agent.state import AgentState
@@ -9,8 +11,16 @@ from src.ingestion.embedder import Embedder
 from src.graph.call_graph import CallGraph
 from src.ingestion.models import Chunk
 
-
 class CodeAgent:
+    @retry(
+        retry=retry_if_exception_type(RateLimitError),
+        wait=wait_exponential(multiplier=1, min=2, max=30),
+        stop=stop_after_attempt(4),
+    )
+    def _call_llm(self, prompt: str) -> str:
+        response = self.llm.invoke(prompt)
+        return response.content.strip()
+
     def __init__(self, chunks: List[Chunk], vector_store: VectorStore, embedder: Embedder):
         self.chunks_by_id: Dict[str, Chunk] = {c.id: c for c in chunks}
         self.vector_store = vector_store
@@ -65,7 +75,7 @@ class CodeAgent:
         if state.get("hop_count", 0) >= MAX_HOP_COUNT:
             return {**state, "needs_hop": False}
 
-        context = self._format_context(state["accumulated_chunk_ids"])
+        context = self._format_context_light(state["accumulated_chunk_ids"])
         prompt = (
             "You are deciding whether more context is needed to answer a question about a codebase.\n"
             f"Question: {state['query']}\n\n"
@@ -75,11 +85,20 @@ class CodeAgent:
             "respond with exactly: HOP\n"
             "Respond with only one word."
         )
-        response = self.llm.invoke(prompt)
-        decision = response.content.strip().upper()
+        decision = self._call_llm(prompt).upper()
         needs_hop = "HOP" in decision and "NO_HOP" not in decision
 
         return {**state, "needs_hop": needs_hop}
+
+    # decide_node now decides if it needs more context
+    def _format_context_light(self,chunk_ids:List[str])->str:
+        parts=[]
+        for cid in chunk_ids:
+            chunk=self.chunks_by_id.get(cid)
+            if chunk:
+                doc=f" - {chunk.docstring}" if chunk.docstring else ""
+                parts.append(f" - {chunk.qualified_name} ({chunk.file_path}:{chunk.start_line}){doc}")
+        return "\n".join(parts)
 
     # actual langgraph conditional edge function
     def _route_after_decide(self, state: AgentState) -> str:
@@ -128,8 +147,8 @@ class CodeAgent:
             f"Question: {state['query']}\n\n"
             "Answer:"
         )
-        response = self.llm.invoke(prompt)
-        return {**state, "final_answer": response.content.strip()}
+        answer = self._call_llm(prompt)
+        return {**state, "final_answer": answer}
 
     # makes llm not hallucinate the line numbers
     def _cite_node(self, state: AgentState) -> AgentState:
