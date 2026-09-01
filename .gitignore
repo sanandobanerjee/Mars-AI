@@ -10,3 +10,5 @@ data/chroma/
 .venv
 
 process.md
+
+node_modules
