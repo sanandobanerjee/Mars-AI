@@ -65,6 +65,8 @@ Built entirely on free-tier infrastructure — no paid APIs or hosting.
 
 - **Python-only ingestion** - Mars currently parses source via Python's `ast` module, so only Python codebases can be ingested. Non-Python repos (JS/TS, etc.) will fail ingestion with a clear error rather than silently producing an empty, non-functional agent. Multi-language support (via `tree-sitter`, which ships pre-compiled wheels for Python/JS/TS with no native build step) is a planned extension — see roadmap.
 
+- **Groq-Free Tier Constraint** - The app is currently lossy by design because dense codebases require high number of tokens which is not delivered by the groq free tier limitation. Might improve to paid tier later if need to turn this into a product. Feel like this is sufficient for a portfolio project.
+
 ## Local setup
 
 ```bash
