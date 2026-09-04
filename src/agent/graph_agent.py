@@ -4,7 +4,7 @@ from typing import List, Dict
 from tenacity import retry,stop_after_attempt,wait_exponential,retry_if_exception_type
 from groq import RateLimitError
 
-from src.config import GROQ_API_KEY, GROQ_MODEL, MAX_HOP_COUNT
+from src.config import GROQ_API_KEY, GROQ_MODEL, MAX_HOP_COUNT,MAX_ACCUMULATED_CHUNKS,MAX_CONTEXT_CHARS
 from src.agent.state import AgentState
 from src.vectorstore.store import VectorStore
 from src.ingestion.embedder import Embedder
@@ -115,7 +115,7 @@ class CodeAgent:
             new_ids.update(self.call_graph.get_callers(cid, max_hops=1))
 
         for nid in new_ids:
-            if nid not in visited:
+            if nid not in visited and len(accumulated) < MAX_ACCUMULATED_CHUNKS:
                 accumulated.append(nid)
                 visited.add(nid)
 
@@ -127,14 +127,18 @@ class CodeAgent:
         }
 
     # formats chunks as labeled source blocks
-    def _format_context(self, chunk_ids:List[str])->str:
-        parts=[]
+    def _format_context(self, chunk_ids: List[str]) -> str:
+        parts = []
+        total_chars = 0
         for cid in chunk_ids:
-            chunk=self.chunks_by_id.get(cid)
-            if chunk:
-                parts.append(
-                    f"### {chunk.qualified_name} ({chunk.file_path}:{chunk.start_line})\n{chunk.source}"
-                )
+            chunk = self.chunks_by_id.get(cid)
+            if not chunk:
+                continue
+            block = f"### {chunk.qualified_name} ({chunk.file_path}:{chunk.start_line})\n{chunk.source}"
+            if total_chars + len(block) > MAX_CONTEXT_CHARS:
+                break
+            parts.append(block)
+            total_chars += len(block)
         return "\n\n".join(parts)
 
     # accumulated context+ question to LLM which spits out answer 

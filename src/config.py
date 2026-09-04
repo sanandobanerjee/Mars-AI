@@ -9,6 +9,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL = "openai/gpt-oss-20b"
 
+MAX_ACCUMULATED_CHUNKS = 15
+MAX_CONTEXT_CHARS=16000
 CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", str(BASE_DIR / "data" / "chroma"))
 REPOS_DIR = BASE_DIR / "data" / "repos"
 
