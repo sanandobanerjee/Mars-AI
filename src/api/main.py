@@ -1,7 +1,12 @@
+import os
+import re
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, field_validator
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.config import REPOS_DIR, TARGET_REPOS, CORE_PATHS
 from src.ingestion.ast_parser import parse_repo
@@ -24,9 +29,23 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Mars API", lifespan=lifespan)
 
+MAX_REQUEST_BYTES = 10_000
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+
+
+class MaxBodySizeMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > MAX_REQUEST_BYTES:
+            return JSONResponse({"detail": "Request body too large"}, status_code=413)
+        return await call_next(request)
+
+
+app.add_middleware(MaxBodySizeMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -36,12 +55,27 @@ _agents: dict[str, CodeAgent] = {}
 
 
 class QueryRequest(BaseModel):
-    repo: str
-    question: str
+    repo: str = Field(..., min_length=1, max_length=100)
+    question: str = Field(..., min_length=1, max_length=2000)
+
+    @field_validator("repo")
+    @classmethod
+    def repo_format(cls, v: str) -> str:
+        if not re.match(r"^[a-z0-9_-]+$", v):
+            raise ValueError("repo must be a lowercase slug (letters, digits, hyphens, underscores)")
+        return v
+
+    @field_validator("question")
+    @classmethod
+    def question_not_blank(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("question cannot be empty or whitespace-only")
+        return stripped
 
 
 class IngestRequest(BaseModel):
-    repo_url: str
+    repo_url: str = Field(..., min_length=1, max_length=200)
 
 
 def _load_agent(slug: str) -> CodeAgent:
