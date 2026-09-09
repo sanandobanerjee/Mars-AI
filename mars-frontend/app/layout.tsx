@@ -1,21 +1,26 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Inter, IBM_Plex_Mono } from "next/font/google";
+import { Chakra_Petch, Sora } from "next/font/google";
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
+const chakraPetch = Chakra_Petch({
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
   variable: "--font-display",
 });
-const inter = Inter({ subsets: ["latin"], variable: "--font-body" });
-const plexMono = IBM_Plex_Mono({
+const sora = Sora({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-mono",
+  variable: "--font-body",
 });
 
 export const metadata: Metadata = {
   title: "Mars — Multi-hop Agent Retrieval and Scoring",
-  description: "A codebase-aware coding agent with multi-hop call-graph reasoning.",
+  description: "A codebase-aware coding agent for exploring unfamiliar Python repositories through multi-hop, call-graph-aware reasoning.",
+  keywords: ["RAG", "LangGraph", "code agent", "AST", "call graph", "AI"],
+  openGraph: {
+    title: "Mars — Multi-hop Agent Retrieval and Scoring",
+    description: "Explore any Python codebase through multi-hop, call-graph-aware AI reasoning.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
@@ -26,7 +31,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${spaceGrotesk.variable} ${inter.variable} ${plexMono.variable}`}
+        className={`${chakraPetch.variable} ${sora.variable}`}
       >
         {children}
       </body>
