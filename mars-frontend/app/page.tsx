@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { fetchRepos, runQuery, startIngest, getIngestStatus } from "@/lib/api";
 import { QueryResult, TraceStep, IngestState } from "@/lib/types";
+import Header from "@/components/Header";
+import StatusBadge from "@/components/StatusBadge";
 import TracePanel from "@/components/TracePanel";
 import AnswerPanel from "@/components/AnswerPanel";
 
@@ -84,7 +86,7 @@ export default function Home() {
     try {
       const res = await runQuery(repo, question);
       clearInterval(interval);
-      setActiveStep("done");
+      setActiveStep("cite");
       setResult(res);
     } catch (e) {
       clearInterval(interval);
@@ -95,83 +97,81 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen p-6 md:p-10 max-w-5xl mx-auto">
-      <header className="mb-8">
-        <div className="font-mono text-xs text-signal tracking-widest uppercase mb-1">
-          Mars
-        </div>
-        <h1 className="font-display text-2xl md:text-3xl text-text">
-          Multi-hop Agent Retrieval and Scoring
-        </h1>
-      </header>
+    <main className="min-h-screen px-6 md:px-16 py-12 max-w-6xl mx-auto">
+      <Header readyCount={repos.length} />
 
-      <div className="grid md:grid-cols-[280px_1fr] gap-6">
-        <div className="space-y-4">
-          <div className="border border-text-dim/20 rounded-lg p-4 bg-surface">
-            <label className="block text-xs font-mono text-text-dim uppercase mb-2">
-              Add a GitHub repo
-            </label>
+      <div className="grid md:grid-cols-[1fr_1.4fr] gap-6">
+        <div>
+          <div className="font-display text-xl font-semibold mb-6 text-mars">Query</div>
+
+          <div className="mb-8">
+            <div className="font-body text-xs text-text/40 tracking-[0.2em] uppercase mb-2">
+              Add target
+            </div>
             <input
               value={repoUrl}
               onChange={(e) => setRepoUrl(e.target.value)}
-              placeholder="https://github.com/owner/repo"
-              className="w-full bg-bg border border-text-dim/20 rounded px-3 py-2 text-text text-sm mb-2"
+              placeholder="github.com/owner/repo"
+              className="w-full bg-void border border-text/10 rounded px-3 py-2 text-text placeholder:text-text/30 focus:outline-none focus:border-mars transition-colors text-sm"
             />
-            <button
-              onClick={handleAddRepo}
-              disabled={ingestState === "ingesting" || !repoUrl.trim()}
-              className="w-full border border-signal text-signal rounded px-3 py-2 text-sm disabled:opacity-40"
-            >
-              {ingestState === "ingesting" ? "Ingesting..." : "Ingest repo"}
-            </button>
+            <div className="flex items-center justify-between mt-2">
+              <button
+                onClick={handleAddRepo}
+                disabled={ingestState === "ingesting" || !repoUrl.trim()}
+                className="font-body text-sm text-mars disabled:text-text/30 hover:text-mars-bright transition-colors"
+              >
+                Ingest →
+              </button>
+              {ingestState && <StatusBadge status={ingestState} />}
+            </div>
             {ingestError && (
-              <div className="text-rust text-xs mt-2 font-mono">{ingestError}</div>
+              <div className="text-mars-bright text-xs mt-2 font-body">{ingestError}</div>
             )}
           </div>
 
-          <div>
-            <label className="block text-xs font-mono text-text-dim uppercase mb-2">
+          <div className="mb-6">
+            <div className="font-body text-xs text-text/40 tracking-[0.2em] uppercase mb-2">
               Repository
-            </label>
+            </div>
             <select
               value={repo}
               onChange={(e) => setRepo(e.target.value)}
-              className="w-full bg-surface border border-text-dim/20 rounded px-3 py-2 text-text font-mono text-sm"
+              className="w-full bg-void border border-text/10 rounded px-3 py-2 text-text focus:outline-none focus:border-mars transition-colors text-sm"
             >
               {repos.map((r) => (
-                <option key={r} value={r}>
+                <option key={r} value={r} className="bg-panel">
                   {r}
                 </option>
               ))}
             </select>
           </div>
 
-          <div>
-            <label className="block text-xs font-mono text-text-dim uppercase mb-2">
+          <div className="mb-6">
+            <div className="font-body text-xs text-text/40 tracking-[0.2em] uppercase mb-2">
               Question
-            </label>
+            </div>
             <textarea
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               rows={4}
               placeholder="How does this function work?"
-              className="w-full bg-surface border border-text-dim/20 rounded px-3 py-2 text-text text-sm resize-none"
+              className="w-full bg-void border border-text/10 rounded px-3 py-2 text-text placeholder:text-text/30 resize-none focus:outline-none focus:border-mars transition-colors text-sm"
             />
           </div>
 
           <button
             onClick={handleSubmit}
             disabled={isRunning || !repo || !question.trim()}
-            className="w-full bg-rust text-bg font-medium rounded px-4 py-2.5 disabled:opacity-40 transition-opacity"
+            className="w-full bg-mars hover:bg-mars-bright text-text font-display font-semibold rounded px-4 py-2.5 disabled:opacity-30 transition-colors"
           >
-            {isRunning ? "Running..." : "Run query"}
+            {isRunning ? "Running…" : "Run →"}
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div>
           <TracePanel activeStep={activeStep} hopsUsed={result?.hops_used ?? 0} isRunning={isRunning} />
           {error && (
-            <div className="border border-rust/40 bg-rust/10 text-rust rounded-lg p-4 text-sm font-mono">
+            <div className="border border-mars-bright/40 bg-mars-bright/10 text-mars-bright rounded-lg p-4 text-sm font-body">
               {error}
             </div>
           )}
