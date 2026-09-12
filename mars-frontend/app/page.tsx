@@ -35,13 +35,19 @@ export default function Home() {
     loadRepos();
   }, []);
 
-  const handleAddRepo = async () => {
+    const handleAddRepo = async () => {
     if (!repoUrl.trim()) return;
     setIngestError(null);
     setIngestState("ingesting");
 
+    const cleaned = repoUrl
+      .trim()
+      .replace(/^https?:\/\/(www\.)?github\.com\//i, "")
+      .replace(/\/$/, "");
+    const fullUrl = `https://github.com/${cleaned}`;
+
     try {
-      const { slug } = await startIngest(repoUrl.trim());
+      const { slug } = await startIngest(fullUrl);
 
       pollRef.current = setInterval(async () => {
         const status = await getIngestStatus(slug);
@@ -108,12 +114,17 @@ export default function Home() {
             <div className="font-body text-xs text-text/40 tracking-[0.2em] uppercase mb-2">
               Add target
             </div>
-            <input
-              value={repoUrl}
-              onChange={(e) => setRepoUrl(e.target.value)}
-              placeholder="github.com/owner/repo"
-              className="w-full bg-void border border-text/10 rounded px-3 py-2 text-text placeholder:text-text/30 focus:outline-none focus:border-mars transition-colors text-sm"
-            />
+            <div className="flex items-stretch border border-text/10 rounded overflow-hidden focus-within:border-mars transition-colors">
+              <span className="bg-panel px-3 py-2 text-text/40 text-sm font-body flex items-center border-r border-text/10">
+                github.com/
+              </span>
+              <input
+                value={repoUrl}
+                onChange={(e) => setRepoUrl(e.target.value)}
+                placeholder="owner/repo"
+                className="flex-1 bg-void px-3 py-2 text-text placeholder:text-text/30 focus:outline-none text-sm"
+              />
+            </div>
             <div className="flex items-center justify-between mt-2">
               <button
                 onClick={handleAddRepo}
