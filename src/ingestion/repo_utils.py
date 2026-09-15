@@ -1,6 +1,7 @@
 import re
 from pathlib import Path
 from typing import List,Tuple
+from git import Repo as GitRepo
 
 GITHUB_URL_PATTERN = re.compile(
     r"^https?://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?$"
@@ -11,6 +12,14 @@ DENYLIST_DIRS = {
     "examples", "example", "docs", "doc", "benchmarks", "benchmark",
     ".github", "build", "dist", "node_modules", ".git",
 }
+
+def get_default_branch(repo_path:Path)->str:
+    try:
+        repo=GitRepo(repo_path)
+        symbolic_ref=repo.git.symbolic_ref("refs/remotes/origin/HEAD")
+        return symbolic_ref.rsplit("/",1)[-1]
+    except Exception:
+        return "main"
 
 def parse_github_url(url:str)-> Tuple[str,str]:
     match=GITHUB_URL_PATTERN.match(url.strip())

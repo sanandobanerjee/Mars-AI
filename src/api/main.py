@@ -22,8 +22,15 @@ from scripts.ingest import ingest, ingest_from_url
 async def lifespan(app: FastAPI):
     for repo_name in TARGET_REPOS:
         set_status(repo_name, IngestState.INGESTING, "Pre-ingesting demo repo")
-        chunk_count = ingest(repo_name)
-        set_status(repo_name, IngestState.READY, chunk_count=chunk_count)
+        result = ingest(repo_name)
+        set_status(
+            result.slug,
+            IngestState.READY,
+            chunk_count=result.chunk_count,
+            owner=result.owner,
+            repo=result.repo,
+            default_branch=result.default_branch,
+        )
     yield
 
 
@@ -101,9 +108,15 @@ def _load_agent(slug: str) -> CodeAgent:
 
 def _background_ingest(repo_url: str, slug: str) -> None:
     try:
-        ingest_from_url(repo_url, force=False)
-        store = VectorStore(collection_name=slug)
-        set_status(slug, IngestState.READY, chunk_count=store.count())
+        result = ingest_from_url(repo_url, force=False)
+        set_status(
+            result.slug,
+            IngestState.READY,
+            chunk_count=result.chunk_count,
+            owner=result.owner,
+            repo=result.repo,
+            default_branch=result.default_branch,
+        )
     except Exception as e:
         set_status(slug, IngestState.ERROR, message=str(e))
 
@@ -137,9 +150,16 @@ def ingest_status(slug: str):
         raise HTTPException(status_code=404, detail="Unknown repo slug")
     return status
 
-
 @app.post("/query")
 def query(req: QueryRequest):
     agent = _load_agent(req.repo)
     result = agent.query(req.question)
-    return result
+    status = get_status(req.repo)
+    return {
+        **result,
+        "repo_meta": {
+            "owner": status.owner if status else "",
+            "repo": status.repo if status else "",
+            "default_branch": status.default_branch if status else "main",
+        },
+    }
