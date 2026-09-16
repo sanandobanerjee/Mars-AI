@@ -3,6 +3,12 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { QueryResult } from "@/lib/types";
 
+function buildGithubUrl(result: QueryResult, filePath: string, startLine: number, endLine: number): string | null {
+  const { owner, repo, default_branch } = result.repo_meta;
+  if (!owner || !repo) return null;
+  return `https://github.com/${owner}/${repo}/blob/${default_branch || "main"}/${filePath}#L${startLine}-L${endLine}`;
+}
+
 export default function AnswerPanel({ result }: { result: QueryResult }) {
   return (
     <motion.div
@@ -15,7 +21,18 @@ export default function AnswerPanel({ result }: { result: QueryResult }) {
         <div className="font-display text-xl font-semibold mb-4 text-mars">
           Answer
         </div>
-        <div className="font-body text-text/90 leading-relaxed text-base space-y-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:text-mars [&_strong]:font-semibold [&_code]:font-body [&_code]:bg-void [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:tracking-tight [&_table]:w-full [&_table]:border-collapse [&_th]:border-b [&_th]:border-text/10 [&_th]:p-2 [&_th]:text-left [&_th]:text-xs [&_th]:uppercase [&_th]:text-text/50 [&_td]:border-b [&_td]:border-text/10 [&_td]:p-2 [&_td]:text-sm">
+        <div
+          className={[
+            "font-body text-text/90 leading-relaxed text-base space-y-3",
+            "[&_ul]:list-disc [&_ul]:pl-5",
+            "[&_ol]:list-decimal [&_ol]:pl-5",
+            "[&_strong]:text-mars [&_strong]:font-semibold",
+            "[&_code]:font-body [&_code]:bg-void [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:tracking-tight",
+            "[&_table]:w-full [&_table]:border-collapse",
+            "[&_th]:border-b [&_th]:border-text/10 [&_th]:p-2 [&_th]:text-left [&_th]:text-xs [&_th]:uppercase [&_th]:text-text/50",
+            "[&_td]:border-b [&_td]:border-text/10 [&_td]:p-2 [&_td]:text-sm",
+          ].join(" ")}
+        >
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {result.answer}
           </ReactMarkdown>
@@ -28,14 +45,28 @@ export default function AnswerPanel({ result }: { result: QueryResult }) {
           <span className="font-body text-sm text-text/40 ml-3">{result.citations.length}</span>
         </div>
         <div className="space-y-3">
-          {result.citations.map((c, i) => (
-            <div key={i} className="flex items-baseline justify-between gap-4">
-              <span className="font-body text-mars-bright text-sm">{c.qualified_name}</span>
-              <span className="font-body text-text/40 text-xs whitespace-nowrap">
-                {c.file_path}:{c.start_line}
-              </span>
-            </div>
-          ))}
+          {result.citations.map((c, i) => {
+            const url = buildGithubUrl(result, c.file_path, c.start_line, c.end_line);
+            return (
+              <div key={i} className="flex items-baseline justify-between gap-4">
+                <span className="font-body text-mars-bright text-sm">{c.qualified_name}</span>
+                {url ? (
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-body text-text/40 text-xs whitespace-nowrap hover:text-mars hover:underline transition-colors"
+                  >
+                    {c.file_path}:{c.start_line}
+                  </a>
+                ) : (
+                  <span className="font-body text-text/40 text-xs whitespace-nowrap">
+                    {c.file_path}:{c.start_line}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </motion.div>

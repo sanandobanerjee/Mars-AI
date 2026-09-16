@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { fetchRepos, runQuery, startIngest, getIngestStatus } from "@/lib/api";
 import { QueryResult, TraceStep, IngestState } from "@/lib/types";
+import { EXAMPLE_QUESTIONS,DEFAULT_EXAMPLE_QUESTIONS } from "@/lib/exampleQuestions";
 import Header from "@/components/Header";
 import StatusBadge from "@/components/StatusBadge";
 import TracePanel from "@/components/TracePanel";
@@ -160,6 +161,17 @@ export default function Home() {
           <div className="mb-6">
             <div className="font-body text-xs text-text/40 tracking-[0.2em] uppercase mb-2">
               Question
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 mb-2">
+              {(EXAMPLE_QUESTIONS[repo] || DEFAULT_EXAMPLE_QUESTIONS).map((q, i) => (
+                <button
+                  key={i}
+                  onClick={() => setQuestion(q)}
+                  className="font-body text-xs text-text/40 hover:text-mars hover:underline transition-colors text-left"
+                >
+                  {q}
+                </button>
+              ))}
             </div>
             <textarea
               value={question}
