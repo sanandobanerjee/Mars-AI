@@ -2,11 +2,18 @@ import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { QueryResult } from "@/lib/types";
+import CopyButton from "./CopyButton";
 
 function buildGithubUrl(result: QueryResult, filePath: string, startLine: number, endLine: number): string | null {
   const { owner, repo, default_branch } = result.repo_meta;
   if (!owner || !repo) return null;
   return `https://github.com/${owner}/${repo}/blob/${default_branch || "main"}/${filePath}#L${startLine}-L${endLine}`;
+}
+
+function formatCitationsAsText(result: QueryResult): string {
+  return result.citations
+    .map((c) => `${c.qualified_name} — ${c.file_path}:${c.start_line}`)
+    .join("\n");
 }
 
 export default function AnswerPanel({ result }: { result: QueryResult }) {
@@ -18,8 +25,11 @@ export default function AnswerPanel({ result }: { result: QueryResult }) {
       className="space-y-6"
     >
       <div className="border border-text/10 bg-panel rounded-lg p-6">
-        <div className="font-display text-xl font-semibold mb-4 text-mars">
-          Answer
+        <div className="flex items-center justify-between mb-4">
+          <div className="font-display text-xl font-semibold text-mars">
+            Answer
+          </div>
+          <CopyButton text={result.answer} />
         </div>
         <div
           className={[
@@ -40,9 +50,12 @@ export default function AnswerPanel({ result }: { result: QueryResult }) {
       </div>
 
       <div className="border border-text/10 bg-panel rounded-lg p-6">
-        <div className="font-display text-xl font-semibold mb-4 text-mars">
-          Citations
-          <span className="font-body text-sm text-text/40 ml-3">{result.citations.length}</span>
+        <div className="flex items-center justify-between mb-4">
+          <div className="font-display text-xl font-semibold text-mars">
+            Citations
+            <span className="font-body text-sm text-text/40 ml-3">{result.citations.length}</span>
+          </div>
+          <CopyButton text={formatCitationsAsText(result)} />
         </div>
         <div className="space-y-3">
           {result.citations.map((c, i) => {
