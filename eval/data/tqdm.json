@@ -1,0 +1,84 @@
+[
+  {
+    "id": "tqdm-001",
+    "repo": "tqdm",
+    "question": "How does tqdm calculate the estimated time remaining?",
+    "ground_truth": "tqdm computes rate as (n - initial) / elapsed once elapsed time is known, then remaining = (total - n) / rate. The result is formatted into a human-readable string by format_interval.",
+    "expected_citations": [
+      {"qualified_name": "tqdm.format_meter", "file_path": "tqdm/std.py"},
+      {"qualified_name": "tqdm.format_interval", "file_path": "tqdm/std.py"}
+    ],
+    "difficulty": "single_hop"
+  },
+  {
+    "id": "tqdm-002",
+    "repo": "tqdm",
+    "question": "What calls the update method?",
+    "ground_truth": "update is called by TqdmCallback._posttask (Dask integration), the callback produced by TqdmCallback.bar2callback (Keras integration), tqdm.__iter__ during generic iteration, and tqdm_notebook.update which forwards to the base implementation.",
+    "expected_citations": [
+      {"qualified_name": "TqdmCallback._posttask", "file_path": "tqdm/dask.py"},
+      {"qualified_name": "tqdm.__iter__", "file_path": "tqdm/std.py"},
+      {"qualified_name": "tqdm_notebook.update", "file_path": "tqdm/notebook.py"}
+    ],
+    "difficulty": "multi_hop"
+  },
+  {
+    "id": "tqdm-003",
+    "repo": "tqdm",
+    "question": "How does tqdm decide whether to disable the progress bar output?",
+    "ground_truth": "tqdm checks the disable parameter; when left as None, it infers whether to disable output based on whether the output stream is a TTY (e.g. redirected to a file disables the bar by default).",
+    "expected_citations": [
+      {"qualified_name": "tqdm.__init__", "file_path": "tqdm/std.py"}
+    ],
+    "difficulty": "single_hop"
+  },
+  {
+    "id": "tqdm-004",
+    "repo": "tqdm",
+    "question": "What is the default unit tqdm uses to label progress?",
+    "ground_truth": "The default unit is 'it' (iterations), configurable via the unit parameter, with unit_scale available to auto-scale large numbers with SI-like suffixes.",
+    "expected_citations": [
+      {"qualified_name": "tqdm.__init__", "file_path": "tqdm/std.py"}
+    ],
+    "difficulty": "single_hop"
+  },
+  {
+    "id": "tqdm-005",
+    "repo": "tqdm",
+    "question": "What happens internally when a tqdm progress bar is closed?",
+    "ground_truth": "close() triggers a final refresh/display of the bar, removes the instance from tqdm's internal tracking, and ensures the terminal cursor state is restored (e.g. a trailing newline is written).",
+    "expected_citations": [
+      {"qualified_name": "tqdm.close", "file_path": "tqdm/std.py"},
+      {"qualified_name": "tqdm.refresh", "file_path": "tqdm/std.py"}
+    ],
+    "difficulty": "multi_hop"
+  },
+  {
+    "id": "tqdm-006",
+    "repo": "tqdm",
+    "question": "How does tqdm support being used as a context manager (the 'with' statement)?",
+    "ground_truth": "tqdm implements __enter__ (returning self) and __exit__, where __exit__ calls close() to ensure the bar is finalized when the with-block exits, even on exception.",
+    "expected_citations": [
+      {"qualified_name": "tqdm.__enter__", "file_path": "tqdm/std.py"},
+      {"qualified_name": "tqdm.__exit__", "file_path": "tqdm/std.py"},
+      {"qualified_name": "tqdm.close", "file_path": "tqdm/std.py"}
+    ],
+    "difficulty": "multi_hop"
+  },
+  {
+    "id": "tqdm-007",
+    "repo": "tqdm",
+    "question": "How does tqdm implement GPU memory tracking for CUDA tensors during iteration?",
+    "ground_truth": "tqdm has no built-in GPU or CUDA memory tracking functionality. It is a general-purpose progress bar library with no direct GPU integration in its core.",
+    "expected_citations": [],
+    "difficulty": "adversarial"
+  },
+  {
+    "id": "tqdm-008",
+    "repo": "tqdm",
+    "question": "What machine learning model does tqdm use to predict progress completion time?",
+    "ground_truth": "tqdm does not use machine learning for progress prediction. It uses a straightforward rate calculation (iterations per elapsed second), not a trained model.",
+    "expected_citations": [],
+    "difficulty": "adversarial"
+  }
+]

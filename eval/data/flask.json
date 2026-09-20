@@ -1,0 +1,79 @@
+[
+  {
+    "id": "flask-001",
+    "repo": "flask",
+    "question": "How does Flask decide which view function handles a given URL?",
+    "ground_truth": "Flask registers URL rules via add_url_rule into a Werkzeug URL map. When a request comes in, dispatch_request looks up the matched rule (bound during request context setup) and calls the corresponding view function.",
+    "expected_citations": [
+      {"qualified_name": "App", "file_path": "src/flask/sansio/app.py"},
+      {"qualified_name": "Scaffold", "file_path": "src/flask/sansio/scaffold.py"}
+    ],
+    "difficulty": "single_hop"
+  },
+  {
+    "id": "flask-002",
+    "repo": "flask",
+    "question": "What decorator is used to register a view function for a route in Flask?",
+    "ground_truth": "The @app.route(...) decorator registers a view function; internally it calls add_url_rule to bind the URL pattern to the function.",
+    "expected_citations": [
+      {"qualified_name": "Scaffold", "file_path": "src/flask/sansio/scaffold.py"}
+    ],
+    "difficulty": "single_hop"
+  },
+  {
+    "id": "flask-003",
+    "repo": "flask",
+    "question": "How does Flask handle before_request and after_request hooks?",
+    "ground_truth": "Scaffold provides before_request/after_request decorators that register functions into per-application (or per-blueprint) lists, which are executed around view dispatch in full_dispatch_request.",
+    "expected_citations": [
+      {"qualified_name": "Scaffold", "file_path": "src/flask/sansio/scaffold.py"}
+    ],
+    "difficulty": "single_hop"
+  },
+  {
+    "id": "flask-004",
+    "repo": "flask",
+    "question": "What calls the dispatch_request method?",
+    "ground_truth": "full_dispatch_request calls dispatch_request as part of handling a request, wrapping it with pre/post-processing and error handling.",
+    "expected_citations": [
+      {"qualified_name": "App", "file_path": "src/flask/sansio/app.py"}
+    ],
+    "difficulty": "multi_hop"
+  },
+  {
+    "id": "flask-005",
+    "repo": "flask",
+    "question": "How does an unhandled error raised in a view function get turned into an HTTP response?",
+    "ground_truth": "full_dispatch_request wraps dispatch_request in exception handling; an uncaught exception is routed through handle_user_exception, which checks for registered error handlers (via errorhandler) before falling back to a default error response.",
+    "expected_citations": [
+      {"qualified_name": "App", "file_path": "src/flask/sansio/app.py"}
+    ],
+    "difficulty": "multi_hop"
+  },
+  {
+    "id": "flask-006",
+    "repo": "flask",
+    "question": "What is the call path from creating a Flask app instance to it being ready to register routes?",
+    "ground_truth": "Flask's App.__init__ (via the Scaffold base) sets up internal registries (URL map, config, extensions) so that subsequent calls to add_url_rule/route can register view functions.",
+    "expected_citations": [
+      {"qualified_name": "App", "file_path": "src/flask/sansio/app.py"}
+    ],
+    "difficulty": "multi_hop"
+  },
+  {
+    "id": "flask-007",
+    "repo": "flask",
+    "question": "How does Flask implement built-in WebSocket support for real-time bidirectional communication?",
+    "ground_truth": "Flask has no built-in WebSocket support. Real-time bidirectional communication requires a separate extension such as Flask-SocketIO.",
+    "expected_citations": [],
+    "difficulty": "adversarial"
+  },
+  {
+    "id": "flask-008",
+    "repo": "flask",
+    "question": "What ORM does Flask use internally to manage database models?",
+    "ground_truth": "Flask does not include a built-in ORM. Database/model management is handled by separate extensions such as Flask-SQLAlchemy.",
+    "expected_citations": [],
+    "difficulty": "adversarial"
+  }
+]

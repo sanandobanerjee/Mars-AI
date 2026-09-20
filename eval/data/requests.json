@@ -1,0 +1,82 @@
+[
+  {
+    "id": "requests-001",
+    "repo": "requests",
+    "question": "How does the Session class handle redirects?",
+    "ground_truth": "Session relies on SessionRedirectMixin, whose send/resolve_redirects logic checks resp.is_redirect, extracts the new URL via get_redirect_target, and rebuilds the request (auth, proxies, method) via rebuild_auth/rebuild_proxies/rebuild_method before re-issuing it.",
+    "expected_citations": [
+      {"qualified_name": "SessionRedirectMixin", "file_path": "src/requests/sessions.py"},
+      {"qualified_name": "SessionRedirectMixin.get_redirect_target", "file_path": "src/requests/sessions.py"},
+      {"qualified_name": "Session.request", "file_path": "src/requests/sessions.py"}
+    ],
+    "difficulty": "single_hop"
+  },
+  {
+    "id": "requests-002",
+    "repo": "requests",
+    "question": "What calls the send method?",
+    "ground_truth": "send is called by Session.request for the initial request, and by Session.resolve_redirects when following a redirect chain.",
+    "expected_citations": [
+      {"qualified_name": "Session.request", "file_path": "src/requests/sessions.py"},
+      {"qualified_name": "SessionRedirectMixin.send", "file_path": "src/requests/sessions.py"}
+    ],
+    "difficulty": "multi_hop"
+  },
+  {
+    "id": "requests-003",
+    "repo": "requests",
+    "question": "Does requests automatically retry failed connections by default?",
+    "ground_truth": "No. By default, HTTPAdapter has max_retries set to 0 (no automatic retries); retry behavior must be explicitly configured via a urllib3 Retry object passed to a custom HTTPAdapter.",
+    "expected_citations": [
+      {"qualified_name": "HTTPAdapter.__init__", "file_path": "src/requests/adapters.py"}
+    ],
+    "difficulty": "single_hop"
+  },
+  {
+    "id": "requests-004",
+    "repo": "requests",
+    "question": "What HTTP methods does the Session class provide convenience methods for?",
+    "ground_truth": "Session provides get, post, put, delete, head, options, and patch as convenience methods, each internally calling the general request method with the appropriate HTTP verb.",
+    "expected_citations": [
+      {"qualified_name": "Session.get", "file_path": "src/requests/sessions.py"},
+      {"qualified_name": "Session.post", "file_path": "src/requests/sessions.py"}
+    ],
+    "difficulty": "single_hop"
+  },
+  {
+    "id": "requests-005",
+    "repo": "requests",
+    "question": "What happens when a request times out, and where is that handled?",
+    "ground_truth": "HTTPAdapter.send catches lower-level urllib3 timeout exceptions during the connection/read phase and re-raises them as requests-specific exceptions such as ConnectTimeout or ReadTimeout.",
+    "expected_citations": [
+      {"qualified_name": "HTTPAdapter.send", "file_path": "src/requests/adapters.py"}
+    ],
+    "difficulty": "multi_hop"
+  },
+  {
+    "id": "requests-006",
+    "repo": "requests",
+    "question": "How are headers merged between the Session and an individual request call?",
+    "ground_truth": "Session.prepare_request merges session-level settings (like headers) with per-request overrides via merge_setting, then builds the final PreparedRequest.",
+    "expected_citations": [
+      {"qualified_name": "Session.prepare_request", "file_path": "src/requests/sessions.py"}
+    ],
+    "difficulty": "multi_hop"
+  },
+  {
+    "id": "requests-007",
+    "repo": "requests",
+    "question": "How does requests implement native HTTP/3 (QUIC) support?",
+    "ground_truth": "requests does not support HTTP/3 or QUIC. It is built on urllib3/http.client, which do not implement QUIC transport.",
+    "expected_citations": [],
+    "difficulty": "adversarial"
+  },
+  {
+    "id": "requests-008",
+    "repo": "requests",
+    "question": "What built-in response caching mechanism does requests use to avoid repeating identical GET requests?",
+    "ground_truth": "requests has no built-in response caching. That functionality is provided by separate third-party packages such as requests-cache, not requests itself.",
+    "expected_citations": [],
+    "difficulty": "adversarial"
+  }
+]

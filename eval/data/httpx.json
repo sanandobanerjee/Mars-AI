@@ -1,0 +1,82 @@
+[
+  {
+    "id": "httpx-001",
+    "repo": "httpx",
+    "question": "Does httpx follow redirects automatically by default, unlike requests?",
+    "ground_truth": "No — httpx does not follow redirects automatically by default (follow_redirects=False), which differs from requests' default behavior of auto-following redirects. It must be explicitly enabled.",
+    "expected_citations": [
+      {"qualified_name": "Client.send", "file_path": "httpx/_client.py"}
+    ],
+    "difficulty": "single_hop"
+  },
+  {
+    "id": "httpx-002",
+    "repo": "httpx",
+    "question": "Does httpx support both synchronous and asynchronous requests?",
+    "ground_truth": "Yes — httpx provides Client for synchronous usage and AsyncClient for asyncio-based asynchronous usage, sharing a largely similar API surface.",
+    "expected_citations": [
+      {"qualified_name": "Client", "file_path": "httpx/_client.py"},
+      {"qualified_name": "AsyncClient", "file_path": "httpx/_client.py"}
+    ],
+    "difficulty": "single_hop"
+  },
+  {
+    "id": "httpx-003",
+    "repo": "httpx",
+    "question": "What handles connection pooling under the hood in httpx?",
+    "ground_truth": "httpx delegates actual connection pooling to the separate httpcore library. Within httpx's own code, this is exposed via the Client's transport layer (e.g. HTTPTransport), which wraps httpcore's pooling. NOTE: since only httpx's own repo is ingested (not httpcore), the agent may correctly report that the real pooling implementation lives outside the ingested source — that is a correct, non-hallucinated answer, not a failure.",
+    "expected_citations": [
+      {"qualified_name": "Client", "file_path": "httpx/_client.py"}
+    ],
+    "difficulty": "single_hop"
+  },
+  {
+    "id": "httpx-004",
+    "repo": "httpx",
+    "question": "What calls the send method on the Client?",
+    "ground_truth": "Client.request calls Client.send internally after building the request object.",
+    "expected_citations": [
+      {"qualified_name": "Client.request", "file_path": "httpx/_client.py"},
+      {"qualified_name": "Client.send", "file_path": "httpx/_client.py"}
+    ],
+    "difficulty": "multi_hop"
+  },
+  {
+    "id": "httpx-005",
+    "repo": "httpx",
+    "question": "How does httpx apply timeouts across a chain of redirects?",
+    "ground_truth": "Client.send handles each hop of a redirect chain via internal per-request sending logic, with timeout behavior applying to each individual request in the chain rather than the chain as a whole.",
+    "expected_citations": [
+      {"qualified_name": "Client.send", "file_path": "httpx/_client.py"}
+    ],
+    "difficulty": "multi_hop"
+  },
+  {
+    "id": "httpx-006",
+    "repo": "httpx",
+    "question": "What is the call path when using httpx.Client as a context manager to make a GET request?",
+    "ground_truth": "__enter__ returns self; .get() calls .request(), which calls .send(); on exiting the with-block, __exit__ calls .close() to release pooled connections.",
+    "expected_citations": [
+      {"qualified_name": "Client.__enter__", "file_path": "httpx/_client.py"},
+      {"qualified_name": "Client.get", "file_path": "httpx/_client.py"},
+      {"qualified_name": "Client.close", "file_path": "httpx/_client.py"}
+    ],
+    "difficulty": "multi_hop"
+  },
+  {
+    "id": "httpx-007",
+    "repo": "httpx",
+    "question": "How does httpx implement automatic response caching using ETags?",
+    "ground_truth": "httpx has no built-in response caching. ETag-based or general HTTP caching requires a separate third-party library (e.g. hishel), not core httpx functionality.",
+    "expected_citations": [],
+    "difficulty": "adversarial"
+  },
+  {
+    "id": "httpx-008",
+    "repo": "httpx",
+    "question": "What built-in circuit breaker pattern does httpx implement to prevent cascading failures across repeated requests?",
+    "ground_truth": "httpx does not implement a circuit breaker pattern. It has no built-in mechanism for tracking failure rates and short-circuiting subsequent requests.",
+    "expected_citations": [],
+    "difficulty": "adversarial"
+  }
+]
