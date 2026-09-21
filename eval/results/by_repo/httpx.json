@@ -1,0 +1,122 @@
+[
+  {
+    "id": "httpx-001",
+    "repo": "httpx",
+    "difficulty": "single_hop",
+    "question": "Does httpx follow redirects automatically by default, unlike requests?",
+    "answer": "Yes.  \nIn **httpx** the `Client` (and `AsyncClient`) are configured to follow redirects automatically unless you explicitly turn the option off.  \nThe default value is stored on the client instance (`self.follow_redirects`) and is used in `Client.send`:\n\n```python\ndef send(\n    self,\n    request: Request,\n    *,\n    stream: bool = False,\n    auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,\n    follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,\n) -> Response:\n    ...\n    follow_redirects = (\n        self.follow_redirects\n        if isinstance(follow_redirects, UseClientDefault)\n        else follow_redirects\n    )\n    ...\n    response = self._send_handling_auth(\n        request,\n        auth=auth,\n        follow_redirects=follow_redirects,\n        history=[],\n    )\n```\n\n`self.follow_redirects` is set to `True` by default when a client is created, so the request will automatically follow 3xx responses (using the logic in `_redirect_method`, `_redirect_url`, etc.).\n\nIn contrast, the `requests` library defaults to `allow_redirects=False` for most methods, meaning you have to pass `allow_redirects=True` if you want redirects to be followed.\n\nSo, **httpx follows redirects automatically by default, unlike `requests`.**",
+    "hops_used": 3,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 0.0,
+      "correctness": 0.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer incorrectly states that httpx follows redirects by default, which contradicts the reference."
+    }
+  },
+  {
+    "id": "httpx-002",
+    "repo": "httpx",
+    "difficulty": "single_hop",
+    "question": "Does httpx support both synchronous and asynchronous requests?",
+    "answer": "Yes.  httpx provides both a synchronous API and an asynchronous one.  \nThe code you\u2019ve shown is the **AsyncClient** class, which exposes async methods such as:\n\n- `AsyncClient.request`\n- `AsyncClient.get`\n- `AsyncClient.post`\n- `AsyncClient.put`\n- `AsyncClient.delete`\n- `AsyncClient.head`\n- `AsyncClient.options`\n- `AsyncClient.stream`\n\nAll of these methods are declared with `async def` and return an `awaitable` `Response`.  In addition to this async client, httpx also offers a synchronous client (not shown in the snippet) that provides the same set of HTTP verbs as regular blocking functions.  Thus, httpx supports both synchronous and asynchronous requests.",
+    "hops_used": 3,
+    "citation_precision": 0.5,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "Answer accurately reflects the reference and contains no unsupported claims."
+    }
+  },
+  {
+    "id": "httpx-003",
+    "repo": "httpx",
+    "difficulty": "single_hop",
+    "question": "What handles connection pooling under the hood in httpx?",
+    "answer": "In httpx the **transport layer** is responsible for connection pooling.  \nWhen a `Client` or `AsyncClient` is created, its `_init_transport` method builds a transport instance (by default an `httpx.HTTPTransport` or `httpx.HTTP2Transport`). That transport implements the `BaseTransport` interface, and its concrete `handle_request` implementation keeps a pool of sockets/HTTP/2 streams that are reused for subsequent requests.  \n\nSo, under the hood, the transport (e.g., `HTTPTransport`/`HTTP2Transport`) handles connection pooling, while the `Client`/`AsyncClient` simply delegates to that transport.",
+    "hops_used": 3,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 0.9,
+      "correctness": 0.5,
+      "avoided_fabrication": null,
+      "reasoning": "The answer avoids hallucinations but omits the key detail that httpx delegates pooling to httpcore, so it is partially correct."
+    }
+  },
+  {
+    "id": "httpx-004",
+    "repo": "httpx",
+    "difficulty": "multi_hop",
+    "question": "What calls the send method on the Client?",
+    "answer": "The `Client.send()` method is invoked from the client\u2019s own request\u2011building helpers.  \nIn particular, the `Client.request()` method (see `httpx_client.py:771`) builds a `Request` object via `self.build_request(...)` and then calls\n\n```python\nreturn self.send(request, auth=auth, follow_redirects=follow_redirects)\n```\n\nSo the direct caller of `Client.send()` is `Client.request()`.  \n(Other convenience methods such as `Client.get`, `Client.post`, etc., ultimately call `Client.request()`, which in turn calls `Client.send()`.)",
+    "hops_used": 1,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately states that Client.request calls Client.send, matching the reference."
+    }
+  },
+  {
+    "id": "httpx-005",
+    "repo": "httpx",
+    "difficulty": "multi_hop",
+    "question": "How does httpx apply timeouts across a chain of redirects?",
+    "answer": "**Short answer**\n\n`httpx` does **not** accumulate timeouts across redirects.  \nThe timeout that you set on the original request is stored in the request\u2019s\n`extensions` dictionary and is passed unchanged to every subsequent request\nthat is generated while following redirects.  Each request in the redirect\nchain therefore uses the same timeout configuration that was applied to the\nfirst request.\n\n---\n\n### How it works in the code\n\n1. **Initial request**  \n   In `Client.send()` the client calls `self._set_timeout(request)` (or\n   `AsyncClient.send()` does the same).  \n   ```python\n   self._set_timeout(request)\n   ```\n   `_set_timeout` creates a `Timeout` instance (or uses the client\u2011default)\n   and stores its dictionary representation in `request.extensions['timeout']`.\n\n2. **Sending a request**  \n   `Client._send_single_request()` (or the async variant) calls the\n   transport\u2019s `handle_request()` (or `handle_async_request()`).  \n   The transport reads the timeout from `request.extensions['timeout']`\n   and applies it to the underlying socket/connection.\n\n3. **Redirect handling**  \n   `Client._send_handling_redirects()` loops over the redirect chain:\n   ```python\n   response = self._send_single_request(request)\n   \u2026\n   request = self._build_redirect_request(request, response)\n   ```\n   The new `request` returned by `_build_redirect_request()` copies the\n   `extensions` dictionary from the previous request, so the timeout\n   information is preserved.  No new timeout is created or modified\n   during the redirect loop.\n\n4. **Result**  \n   Every request in the chain is sent with the *same* timeout settings that\n   were applied to the original request.  If you set `Timeout(None)` you\n   get no timeout on any request; if you set `Timeout(5.0, connect=10.0)` you\n   get a 5\u2011second timeout on all operations and a 10\u2011second connect timeout\n   on every request in the chain.\n\n---\n\n### Take\u2011away\n\n- Timeouts are applied per\u2011request, not per\u2011redirect.\n- The timeout configuration is stored in `request.extensions['timeout']`\n  and is carried over automatically when a redirect request is built.\n- If you need different timeouts for different redirects, you would have\n  to modify the redirect request manually before it is sent.",
+    "hops_used": 3,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": true,
+      "reasoning": "The answer accurately reflects that timeouts are applied per request in a redirect chain and does not introduce unsupported claims."
+    }
+  },
+  {
+    "id": "httpx-006",
+    "repo": "httpx",
+    "difficulty": "multi_hop",
+    "question": "What is the call path when using httpx.Client as a context manager to make a GET request?",
+    "answer": "When you write\n\n```python\nwith httpx.Client() as client:\n    response = client.get(\"https://example.com\")\n```\n\nthe following sequence of calls is executed:\n\n1. **`Client.__enter__`** \u2013 the context\u2011manager entry method returns the `Client` instance itself.  \n2. **`Client.get`** \u2013 the public convenience method for a GET request.  \n   ```python\n   def get(self, url, *, params=None, headers=None, \u2026) -> Response:\n       return self.request(\"GET\", url, params=params, headers=headers, \u2026)\n   ```\n3. **`Client.request`** \u2013 the generic request builder that accepts the HTTP method and all request parameters.  \n   ```python\n   def request(self, method, url, *, content=None, data=None, \u2026) -> Response:\n       request = self.build_request(method=method, url=url, \u2026)\n       return self.send(request, auth=auth, follow_redirects=follow_redirects)\n   ```\n4. **`Client.build_request`** \u2013 (not shown in the snippet) constructs an `httpx.Request` object, merging client\u2011level configuration with the per\u2011request arguments.\n5. **`Client.send`** \u2013 sends the fully\u2011built `Request` object.  \n   ```python\n   def send(self, request, *, stream=False, auth=USE_CLIENT_DEFAULT, follow_redirects=USE_CLIENT_DEFAULT) -> Response:\n       # \u2026 set timeout, auth, etc.\n       response = self._send_handling_auth(request, auth=auth, follow_redirects=follow_redirects, history=[])\n       if not stream:\n           response.read()\n       return response\n   ```\n6. **`Client.__exit__`** \u2013 when the `with` block exits, the context\u2011manager\u2019s `__exit__` method is called, which closes the client (`self._state = ClientState.CLOSED`).\n\nSo the call path is:\n\n```\nClient.__enter__ \u2192 Client.get \u2192 Client.request \u2192 Client.build_request \u2192 Client.send \u2192 Client.__exit__\n```\n\nEach step passes the request data along until the `Response` object is returned.",
+    "hops_used": 3,
+    "citation_precision": 0.3333333333333333,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately describes the call sequence and matches the reference without adding unsupported claims."
+    }
+  },
+  {
+    "id": "httpx-007",
+    "repo": "httpx",
+    "difficulty": "adversarial",
+    "question": "How does httpx implement automatic response caching using ETags?",
+    "answer": "In the code snippets you\u2019ve provided, there is no logic that implements automatic caching of responses based on ETags.  \nAll of the request\u2011sending helpers (`Client.request`, `AsyncClient.request`, `Client.send`, `AsyncClient.send`, etc.) simply build a `Request` object, apply authentication and redirects, and then forward it to the transport layer. None of those methods inspect or store an `ETag` header, nor do they add an `If-None-Match` header on subsequent requests.\n\nBecause of that, httpx does **not** provide built\u2011in automatic response caching using ETags. If you need to cache responses, you must do it yourself (e.g., by storing the response body and its `ETag` header, and then adding an `If-None-Match` header on future requests).",
+    "hops_used": 3,
+    "citation_precision": null,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": true,
+      "reasoning": "The answer accurately states that httpx has no built\u2011in ETag caching and does not invent any unsupported features."
+    }
+  },
+  {
+    "id": "httpx-008",
+    "repo": "httpx",
+    "difficulty": "adversarial",
+    "question": "What built-in circuit breaker pattern does httpx implement to prevent cascading failures across repeated requests?",
+    "answer": "",
+    "hops_used": 3,
+    "citation_precision": null,
+    "judge": {
+      "faithfulness": 0.0,
+      "correctness": 0.0,
+      "avoided_fabrication": true,
+      "reasoning": "The answer does not address the question and does not mention the absence of a circuit breaker, so it is incomplete."
+    }
+  }
+]

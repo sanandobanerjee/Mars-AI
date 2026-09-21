@@ -1,0 +1,122 @@
+[
+  {
+    "id": "requests-001",
+    "repo": "requests",
+    "difficulty": "single_hop",
+    "question": "How does the Session class handle redirects?",
+    "answer": "**How the `Session` class handles redirects**\n\n`Session` inherits from `SessionRedirectMixin`.  \nWhen a request is sent (`Session.request \u2192 Session.send`), the mixin\u2019s `send` method is the one that actually follows redirects.\n\n1. **Initial send** \u2013 `Session.send` (from the mixin) sends the prepared request and receives a `Response`.\n\n2. **Detect a redirect** \u2013  \n   * `send` checks `resp.is_redirect`.  \n   * If it is a redirect, it calls `get_redirect_target(resp)` to read the `Location` header, re\u2011encode it as UTF\u20118, and return the new URL.\n\n3. **Re\u2011build the request for the next hop** \u2013  \n   * `rebuild_auth(resp)` removes or updates the `Authorization` header if the host changes.  \n   * `rebuild_proxies(resp)` updates the proxy mapping for the new host.  \n   * `rebuild_method(resp)` changes the HTTP method (e.g., `GET` for 301/302/303, `HEAD` for 304, etc.).\n\n4. **Follow the redirect** \u2013  \n   * `resolve_redirects` is called with the original request, the first response, and the `allow_redirects` flag.  \n   * It loops, sending the rebuilt request, collecting each intermediate `Response`, until a non\u2011redirect response is returned or the maximum number of redirects is reached.\n\n5. **Return the final response** \u2013 The last `Response` object (the one that is not a redirect) is returned to the caller of `Session.request`.\n\nIn short, the `Session` class delegates redirect handling to the mixin\u2019s `send`, `get_redirect_target`, `rebuild_*`, and `resolve_redirects` methods, which together read the `Location` header, rebuild the request appropriately, and follow the chain of redirects until a final response is obtained.",
+    "hops_used": 0,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 0.0,
+      "correctness": 0.0,
+      "avoided_fabrication": null,
+      "reasoning": "Judge output could not be parsed"
+    }
+  },
+  {
+    "id": "requests-002",
+    "repo": "requests",
+    "difficulty": "multi_hop",
+    "question": "What calls the send method?",
+    "answer": "The `send` method is invoked from the `Session.request` method.  \nAfter a `Request` is created and prepared, `Session.request` builds a dictionary of settings and then calls:\n\n```python\nresp = self.send(prep, **send_kwargs)\n```\n\nThus, `Session.request` (and any higher\u2011level helpers that delegate to it, such as `Session.post`) is the function that actually calls `SessionRedirectMixin.send`.",
+    "hops_used": 0,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 0.5,
+      "avoided_fabrication": null,
+      "reasoning": "The answer correctly identifies Session.request calling send but omits the resolve_redirects call, so it is faithful but incomplete."
+    }
+  },
+  {
+    "id": "requests-003",
+    "repo": "requests",
+    "difficulty": "single_hop",
+    "question": "Does requests automatically retry failed connections by default?",
+    "answer": "No.  \nWhen a `Session` creates its default `HTTPAdapter`, the constructor sets\n\n```python\nif max_retries == DEFAULT_RETRIES:\n    self.max_retries = Retry(0, read=False)\n```\n\n(`DEFAULT_RETRIES` is the value passed when you don\u2019t specify `max_retries`).  \n`Retry(0, read=False)` means \u201cdo not retry any failed connections.\u201d  \nSo, unless you explicitly pass a non\u2011zero `max_retries` (or a custom `Retry` object) to `HTTPAdapter`, Requests will **not** automatically retry failed connections.",
+    "hops_used": 0,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately reflects the reference, with no unsupported claims."
+    }
+  },
+  {
+    "id": "requests-004",
+    "repo": "requests",
+    "difficulty": "single_hop",
+    "question": "What HTTP methods does the Session class provide convenience methods for?",
+    "answer": "The `Session` class ships a set of \u201cconvenience\u201d helpers that wrap the generic `request()` call for the most common HTTP verbs.  In the source you can see the following methods defined on `Session`:\n\n| Method name | HTTP verb |\n|-------------|-----------|\n| `get`       | GET |\n| `options`   | OPTIONS |\n| `head`      | HEAD |\n| `post`      | POST |\n| `put`       | PUT |\n| `patch`     | PATCH |\n| `delete`    | DELETE |\n\nThese helpers simply call `self.request()` with the appropriate verb and any default arguments (e.g., `allow_redirects` for `head` and `options`).  Thus, a `Session` instance can be used directly with `s.get(...)`, `s.post(...)`, etc., for the standard HTTP methods listed above.",
+    "hops_used": 3,
+    "citation_precision": 0.5,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer lists exactly the same HTTP methods as the reference and contains no unsupported claims."
+    }
+  },
+  {
+    "id": "requests-005",
+    "repo": "requests",
+    "difficulty": "multi_hop",
+    "question": "What happens when a request times out, and where is that handled?",
+    "answer": "When a request takes longer than the value supplied in the `timeout` argument, the underlying **urllib3** connection will raise one of its own timeout exceptions (`ConnectTimeoutError` or `ReadTimeoutError`).  \n`requests` translates those urllib3 errors into its own public timeout exceptions:\n\n| urllib3 error | requests exception raised | Where it is raised |\n|---------------|---------------------------|--------------------|\n| `ConnectTimeoutError` | `requests.exceptions.ConnectTimeout` | Inside `HTTPAdapter.send` \u2013 in the `except MaxRetryError` block (lines 660\u2011672). |\n| `ReadTimeoutError` | `requests.exceptions.ReadTimeout` | Inside `HTTPAdapter.send` \u2013 in the `except (_SSLError, _HTTPError)` block (lines 692\u2011700). |\n\nThe `Timeout` class defined in `src/requests/exceptions.py` is the base class for both `ConnectTimeout` and `ReadTimeout`, so catching `Timeout` will catch either type of timeout.\n\nThe flow is:\n\n1. `HTTPAdapter.send` builds a `TimeoutSauce` object from the `timeout` argument (lines 635\u2011648).  \n2. It passes that `TimeoutSauce` to `conn.urlopen`.  \n3. If the connection times out, urllib3 raises a timeout exception.  \n4. `HTTPAdapter.send` catches that exception and re\u2011raises the corresponding `requests` exception (`ConnectTimeout` or `ReadTimeout`).  \n\nThus, the handling of a timeout occurs in `HTTPAdapter.send`, specifically in the exception\u2011handling blocks that translate urllib3 timeout errors into the public `requests.exceptions` hierarchy.",
+    "hops_used": 0,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 0.85,
+      "correctness": 0.95,
+      "avoided_fabrication": null,
+      "reasoning": "Answer aligns with reference and adds plausible, though not explicitly verified, details."
+    }
+  },
+  {
+    "id": "requests-006",
+    "repo": "requests",
+    "difficulty": "multi_hop",
+    "question": "How are headers merged between the Session and an individual request call?",
+    "answer": "Headers are combined in **`Session.prepare_request`**.  \nWhen a `Request` is turned into a `PreparedRequest`, the code does:\n\n```python\np.prepare(\n    ...\n    headers=merge_setting(\n        request.headers, self.headers, dict_class=CaseInsensitiveDict\n    ),\n    ...\n)\n```\n\n`merge_setting` (defined elsewhere in the library) merges two dictionaries.  \n* The first argument (`request.headers`) contains the headers supplied on that particular request.  \n* The second argument (`self.headers`) contains the session\u2011wide default headers that were set in `Session.__init__` (via `default_headers()`).\n\nThe merge uses `CaseInsensitiveDict` so header names are treated case\u2011insensitively.  \nThe result is that **request\u2011specific headers override any session defaults**; any headers not supplied on the request are taken from the session. This merged dictionary is then used to build the final `PreparedRequest`.",
+    "hops_used": 3,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately describes the merge process and matches the reference."
+    }
+  },
+  {
+    "id": "requests-007",
+    "repo": "requests",
+    "difficulty": "adversarial",
+    "question": "How does requests implement native HTTP/3 (QUIC) support?",
+    "answer": "The code you\u2019ve shown is the core of the `requests` library \u2013 the `request()` helper, the `PreparedRequest` and `Request` classes, the `HTTPAdapter`, and a handful of utility helpers. None of those modules contain any logic for QUIC or HTTP/3. In particular:\n\n* `request()` simply hands the call off to a `Session` that uses `urllib3` under the hood.\n* `PreparedRequest.prepare_url()` and `PreparedRequest.prepare()` only deal with normal URL parsing, encoding, and header preparation.\n* `HTTPAdapter.request_url()` only selects a proxy and strips the fragment/auth for HTTP/1.x requests.\n* The helper functions (`select_proxy`, `urldefragauth`, `requote_uri`, etc.) are all about standard URL handling.\n\nThere is no reference to the QUIC protocol stack, no import of a QUIC library, and no code that would construct or send a `ClientHello` or handle stream multiplexing. In short, the `requests` package does **not** implement native HTTP/3 (QUIC) support. If you need HTTP/3 you would have to use a different client (e.g., `httpx` with `httpcore` or `aioquic`) or add a custom adapter that talks to a QUIC-capable backend.",
+    "hops_used": 3,
+    "citation_precision": null,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": true,
+      "reasoning": "The answer accurately states that requests lacks HTTP/3/QUIC support and does not add false claims."
+    }
+  },
+  {
+    "id": "requests-008",
+    "repo": "requests",
+    "difficulty": "adversarial",
+    "question": "What built-in response caching mechanism does requests use to avoid repeating identical GET requests?",
+    "answer": "Requests does **not** cache responses internally.  \nThere is no built\u2011in mechanism in the code that stores a GET response and re\u2011uses it for identical subsequent requests.  The library relies on the HTTP protocol\u2019s cache\u2011control headers (e.g., `Cache\u2011Control`, `ETag`, `Last\u2011Modified`) and the server\u2019s caching behaviour, but it does not implement its own caching layer.  If you need client\u2011side caching you must add an external solution such as `requests\u2011cache`.",
+    "hops_used": 3,
+    "citation_precision": null,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": true,
+      "reasoning": "The answer correctly states that requests has no built\u2011in caching and matches the reference."
+    }
+  }
+]

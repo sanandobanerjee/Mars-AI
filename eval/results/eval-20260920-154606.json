@@ -1,0 +1,482 @@
+[
+  {
+    "id": "tqdm-001",
+    "repo": "tqdm",
+    "difficulty": "single_hop",
+    "question": "How does tqdm calculate the estimated time remaining?",
+    "answer": "In **tqdm** the \u201cETA\u201d (estimated time remaining) is derived from the current *rate* of progress.  \nThe logic lives in `tqdm.format_meter`:\n\n```python\n# 1. Compute the current rate (if not supplied by the user)\nif rate is None and elapsed:\n    rate = (n - initial) / elapsed          # iterations per second\n\n# 2. Compute the remaining time\nremaining = (total - n) / rate if rate and total else 0\nremaining_str = tqdm.format_interval(remaining) if rate else '?'\n```\n\n* `n` \u2013 number of iterations already finished.  \n* `total` \u2013 the expected total number of iterations (may be `None`).  \n* `elapsed` \u2013 seconds elapsed since the start.  \n* `rate` \u2013 average speed in iterations per second (defaulted to `(n\u2011initial)/elapsed`).  \n\nThus the ETA is simply:\n\n```\nETA = (total \u2013 finished) / (finished / elapsed)\n```\n\nwhich is the number of iterations left divided by the current average speed.  \nIf `total` is unknown or the rate cannot be computed, tqdm falls back to a \u201c?\u201d for the ETA.",
+    "hops_used": 3,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately reflects the reference calculation and contains no unsupported claims."
+    }
+  },
+  {
+    "id": "tqdm-002",
+    "repo": "tqdm",
+    "difficulty": "multi_hop",
+    "question": "What calls the update method?",
+    "answer": "The **`update`** method of a `tqdm` instance is invoked from several places in the code base:\n\n| Caller | Where it is defined | How it calls `update` |\n|--------|---------------------|-----------------------|\n| **`TqdmCallback._posttask`** | `tqdm/dask.py` | `self.pbar.update()` \u2013 called after a Dask task finishes. |\n| **`TqdmCallback.bar2callback`** | `tqdm/keras.py` | The inner `callback` function does `bar.update(n)` after computing `n` from the logs. |\n| **`tqdm.__iter__`** | `tqdm/std.py` | Inside the iterator loop it does `self.update(n - last_print_n)` when the print\u2011threshold is reached. |\n| **`tqdm_notebook.update`** | `tqdm/notebook.py` | Calls `super().update(n=n)` (i.e., the standard `tqdm.update`). |\n\nThus, the `update` method is called by the Dask callback (`_posttask`), by the Keras callback factory (`bar2callback`), by the iterator implementation of `tqdm`, and by the notebook\u2011specific subclass (`tqdm_notebook`).",
+    "hops_used": 1,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately lists all four callers from the reference without adding unsupported claims."
+    }
+  },
+  {
+    "id": "tqdm-003",
+    "repo": "tqdm",
+    "difficulty": "single_hop",
+    "question": "How does tqdm decide whether to disable the progress bar output?",
+    "answer": "` tqdm` turns the whole wrapper off when the *disable* flag is set.  \nIn the constructor (`tqdm.__init__`) the value of the `disable` argument is\nstored and used to decide whether any output should be produced:\n\n| value of `disable` | behaviour |\n|--------------------|-----------|\n| `True` | the progress bar is **always** suppressed \u2013 no meter, no stats, no refreshes. |\n| `False` | the progress bar is **always** shown (subject to the usual TTY checks). |\n| `None` | the bar is suppressed **only when the output stream is not a TTY** (i.e. when `sys.stderr`/`file` is not attached to an interactive terminal). |\n\nSo, by default (`disable=False`) tqdm prints the bar on a TTY; if you pass\n`disable=True` you force it off, and if you pass `disable=None` you let tqdm\ndecide automatically based on whether the output stream is a terminal.",
+    "hops_used": 0,
+    "citation_precision": 0.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately reflects tqdm's disable logic and matches the reference without adding unsupported claims."
+    }
+  },
+  {
+    "id": "tqdm-004",
+    "repo": "tqdm",
+    "difficulty": "single_hop",
+    "question": "What is the default unit tqdm uses to label progress?",
+    "answer": "The default unit that tqdm uses to label each iteration is **`\"it\"`** (short for \u201citeration\u201d).  \nThis is set as the default value for the `unit` parameter in the `tqdm` constructor and is also the default passed to `tqdm.format_meter`.",
+    "hops_used": 0,
+    "citation_precision": 0.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer correctly states the default unit 'it' and its source, matching the reference without adding unsupported claims."
+    }
+  },
+  {
+    "id": "tqdm-005",
+    "repo": "tqdm",
+    "difficulty": "multi_hop",
+    "question": "What happens internally when a tqdm progress bar is closed?",
+    "answer": "",
+    "hops_used": 3,
+    "citation_precision": 0.0,
+    "judge": {
+      "faithfulness": 0.0,
+      "correctness": 0.0,
+      "avoided_fabrication": null,
+      "reasoning": "No answer was provided, so it cannot be faithful or correct."
+    }
+  },
+  {
+    "id": "tqdm-006",
+    "repo": "tqdm",
+    "difficulty": "multi_hop",
+    "question": "How does tqdm support being used as a context manager (the 'with' statement)?",
+    "answer": "` tqdm ` implements the standard context\u2011manager protocol.  \nWhen you write\n\n```python\nwith tqdm(total=10) as p:\n    for _ in p:\n        \u2026\n```\n\nthe following happens:\n\n1. **`__enter__`** \u2013 The `tqdm` instance\u2019s `__enter__` method is called.  \n   It simply returns the instance itself (`self`), so the variable `p` inside the\n   `with` block refers to the same `tqdm` object.\n\n2. **`__exit__`** \u2013 When the block finishes (normally or via an exception),\n   `__exit__` is invoked.  The default implementation calls `self.close()`,\n   which finalises the progress bar (flushes output, releases resources,\n   etc.) and ensures the bar is properly terminated.\n\nThus, by providing `__enter__` and `__exit__`, `tqdm` can be used as a\ncontext manager, automatically handling the start and clean\u2011up of the\nprogress bar.",
+    "hops_used": 3,
+    "citation_precision": 0.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately describes __enter__ returning self and __exit__ calling close(), matching the reference."
+    }
+  },
+  {
+    "id": "tqdm-007",
+    "repo": "tqdm",
+    "difficulty": "adversarial",
+    "question": "How does tqdm implement GPU memory tracking for CUDA tensors during iteration?",
+    "answer": "In the code snippets you\u2019ve provided, there is no implementation for tracking GPU memory usage of CUDA tensors. The `TqdmCallback`, `tqdm.update`, `tqdm.__iter__`, and related methods all focus on counting iterations, updating the progress bar, and handling display logic. None of the shown functions or classes interact with CUDA, PyTorch, TensorFlow, or any other GPU\u2011specific APIs, nor do they query or record memory statistics. Therefore, within this codebase, tqdm does **not** implement GPU memory tracking for CUDA tensors during iteration.",
+    "hops_used": 3,
+    "citation_precision": null,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": true,
+      "reasoning": "The answer correctly states that tqdm has no GPU memory tracking and does not invent any functionality."
+    }
+  },
+  {
+    "id": "tqdm-008",
+    "repo": "tqdm",
+    "difficulty": "adversarial",
+    "question": "What machine learning model does tqdm use to predict progress completion time?",
+    "answer": "tqdm does **not** employ a machine\u2011learning model to estimate the remaining time.  \nInstead, it uses a simple exponential\u2011moving\u2011average (EMA) smoothing algorithm \u2013 the `smoothing` parameter in the `tqdm` constructor controls the EMA factor used to compute the ETA. No complex ML model is involved.",
+    "hops_used": 3,
+    "citation_precision": null,
+    "judge": {
+      "faithfulness": 0.0,
+      "correctness": 0.5,
+      "avoided_fabrication": false,
+      "reasoning": "The answer correctly states no ML is used but incorrectly claims EMA smoothing, which is not supported by the reference."
+    }
+  },
+  {
+    "id": "requests-001",
+    "repo": "requests",
+    "difficulty": "single_hop",
+    "question": "How does the Session class handle redirects?",
+    "answer": "**How the `Session` class handles redirects**\n\n`Session` inherits from `SessionRedirectMixin`.  \nWhen a request is sent (`Session.request \u2192 Session.send`), the mixin\u2019s `send` method is the one that actually follows redirects.\n\n1. **Initial send** \u2013 `Session.send` (from the mixin) sends the prepared request and receives a `Response`.\n\n2. **Detect a redirect** \u2013  \n   * `send` checks `resp.is_redirect`.  \n   * If it is a redirect, it calls `get_redirect_target(resp)` to read the `Location` header, re\u2011encode it as UTF\u20118, and return the new URL.\n\n3. **Re\u2011build the request for the next hop** \u2013  \n   * `rebuild_auth(resp)` removes or updates the `Authorization` header if the host changes.  \n   * `rebuild_proxies(resp)` updates the proxy mapping for the new host.  \n   * `rebuild_method(resp)` changes the HTTP method (e.g., `GET` for 301/302/303, `HEAD` for 304, etc.).\n\n4. **Follow the redirect** \u2013  \n   * `resolve_redirects` is called with the original request, the first response, and the `allow_redirects` flag.  \n   * It loops, sending the rebuilt request, collecting each intermediate `Response`, until a non\u2011redirect response is returned or the maximum number of redirects is reached.\n\n5. **Return the final response** \u2013 The last `Response` object (the one that is not a redirect) is returned to the caller of `Session.request`.\n\nIn short, the `Session` class delegates redirect handling to the mixin\u2019s `send`, `get_redirect_target`, `rebuild_*`, and `resolve_redirects` methods, which together read the `Location` header, rebuild the request appropriately, and follow the chain of redirects until a final response is obtained.",
+    "hops_used": 0,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 0.0,
+      "correctness": 0.0,
+      "avoided_fabrication": null,
+      "reasoning": "Judge output could not be parsed"
+    }
+  },
+  {
+    "id": "requests-002",
+    "repo": "requests",
+    "difficulty": "multi_hop",
+    "question": "What calls the send method?",
+    "answer": "The `send` method is invoked from the `Session.request` method.  \nAfter a `Request` is created and prepared, `Session.request` builds a dictionary of settings and then calls:\n\n```python\nresp = self.send(prep, **send_kwargs)\n```\n\nThus, `Session.request` (and any higher\u2011level helpers that delegate to it, such as `Session.post`) is the function that actually calls `SessionRedirectMixin.send`.",
+    "hops_used": 0,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 0.5,
+      "avoided_fabrication": null,
+      "reasoning": "The answer correctly identifies Session.request calling send but omits the resolve_redirects call, so it is faithful but incomplete."
+    }
+  },
+  {
+    "id": "requests-003",
+    "repo": "requests",
+    "difficulty": "single_hop",
+    "question": "Does requests automatically retry failed connections by default?",
+    "answer": "No.  \nWhen a `Session` creates its default `HTTPAdapter`, the constructor sets\n\n```python\nif max_retries == DEFAULT_RETRIES:\n    self.max_retries = Retry(0, read=False)\n```\n\n(`DEFAULT_RETRIES` is the value passed when you don\u2019t specify `max_retries`).  \n`Retry(0, read=False)` means \u201cdo not retry any failed connections.\u201d  \nSo, unless you explicitly pass a non\u2011zero `max_retries` (or a custom `Retry` object) to `HTTPAdapter`, Requests will **not** automatically retry failed connections.",
+    "hops_used": 0,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately reflects the reference, with no unsupported claims."
+    }
+  },
+  {
+    "id": "requests-004",
+    "repo": "requests",
+    "difficulty": "single_hop",
+    "question": "What HTTP methods does the Session class provide convenience methods for?",
+    "answer": "The `Session` class ships a set of \u201cconvenience\u201d helpers that wrap the generic `request()` call for the most common HTTP verbs.  In the source you can see the following methods defined on `Session`:\n\n| Method name | HTTP verb |\n|-------------|-----------|\n| `get`       | GET |\n| `options`   | OPTIONS |\n| `head`      | HEAD |\n| `post`      | POST |\n| `put`       | PUT |\n| `patch`     | PATCH |\n| `delete`    | DELETE |\n\nThese helpers simply call `self.request()` with the appropriate verb and any default arguments (e.g., `allow_redirects` for `head` and `options`).  Thus, a `Session` instance can be used directly with `s.get(...)`, `s.post(...)`, etc., for the standard HTTP methods listed above.",
+    "hops_used": 3,
+    "citation_precision": 0.5,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer lists exactly the same HTTP methods as the reference and contains no unsupported claims."
+    }
+  },
+  {
+    "id": "requests-005",
+    "repo": "requests",
+    "difficulty": "multi_hop",
+    "question": "What happens when a request times out, and where is that handled?",
+    "answer": "When a request takes longer than the value supplied in the `timeout` argument, the underlying **urllib3** connection will raise one of its own timeout exceptions (`ConnectTimeoutError` or `ReadTimeoutError`).  \n`requests` translates those urllib3 errors into its own public timeout exceptions:\n\n| urllib3 error | requests exception raised | Where it is raised |\n|---------------|---------------------------|--------------------|\n| `ConnectTimeoutError` | `requests.exceptions.ConnectTimeout` | Inside `HTTPAdapter.send` \u2013 in the `except MaxRetryError` block (lines 660\u2011672). |\n| `ReadTimeoutError` | `requests.exceptions.ReadTimeout` | Inside `HTTPAdapter.send` \u2013 in the `except (_SSLError, _HTTPError)` block (lines 692\u2011700). |\n\nThe `Timeout` class defined in `src/requests/exceptions.py` is the base class for both `ConnectTimeout` and `ReadTimeout`, so catching `Timeout` will catch either type of timeout.\n\nThe flow is:\n\n1. `HTTPAdapter.send` builds a `TimeoutSauce` object from the `timeout` argument (lines 635\u2011648).  \n2. It passes that `TimeoutSauce` to `conn.urlopen`.  \n3. If the connection times out, urllib3 raises a timeout exception.  \n4. `HTTPAdapter.send` catches that exception and re\u2011raises the corresponding `requests` exception (`ConnectTimeout` or `ReadTimeout`).  \n\nThus, the handling of a timeout occurs in `HTTPAdapter.send`, specifically in the exception\u2011handling blocks that translate urllib3 timeout errors into the public `requests.exceptions` hierarchy.",
+    "hops_used": 0,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 0.85,
+      "correctness": 0.95,
+      "avoided_fabrication": null,
+      "reasoning": "Answer aligns with reference and adds plausible, though not explicitly verified, details."
+    }
+  },
+  {
+    "id": "requests-006",
+    "repo": "requests",
+    "difficulty": "multi_hop",
+    "question": "How are headers merged between the Session and an individual request call?",
+    "answer": "Headers are combined in **`Session.prepare_request`**.  \nWhen a `Request` is turned into a `PreparedRequest`, the code does:\n\n```python\np.prepare(\n    ...\n    headers=merge_setting(\n        request.headers, self.headers, dict_class=CaseInsensitiveDict\n    ),\n    ...\n)\n```\n\n`merge_setting` (defined elsewhere in the library) merges two dictionaries.  \n* The first argument (`request.headers`) contains the headers supplied on that particular request.  \n* The second argument (`self.headers`) contains the session\u2011wide default headers that were set in `Session.__init__` (via `default_headers()`).\n\nThe merge uses `CaseInsensitiveDict` so header names are treated case\u2011insensitively.  \nThe result is that **request\u2011specific headers override any session defaults**; any headers not supplied on the request are taken from the session. This merged dictionary is then used to build the final `PreparedRequest`.",
+    "hops_used": 3,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately describes the merge process and matches the reference."
+    }
+  },
+  {
+    "id": "requests-007",
+    "repo": "requests",
+    "difficulty": "adversarial",
+    "question": "How does requests implement native HTTP/3 (QUIC) support?",
+    "answer": "The code you\u2019ve shown is the core of the `requests` library \u2013 the `request()` helper, the `PreparedRequest` and `Request` classes, the `HTTPAdapter`, and a handful of utility helpers. None of those modules contain any logic for QUIC or HTTP/3. In particular:\n\n* `request()` simply hands the call off to a `Session` that uses `urllib3` under the hood.\n* `PreparedRequest.prepare_url()` and `PreparedRequest.prepare()` only deal with normal URL parsing, encoding, and header preparation.\n* `HTTPAdapter.request_url()` only selects a proxy and strips the fragment/auth for HTTP/1.x requests.\n* The helper functions (`select_proxy`, `urldefragauth`, `requote_uri`, etc.) are all about standard URL handling.\n\nThere is no reference to the QUIC protocol stack, no import of a QUIC library, and no code that would construct or send a `ClientHello` or handle stream multiplexing. In short, the `requests` package does **not** implement native HTTP/3 (QUIC) support. If you need HTTP/3 you would have to use a different client (e.g., `httpx` with `httpcore` or `aioquic`) or add a custom adapter that talks to a QUIC-capable backend.",
+    "hops_used": 3,
+    "citation_precision": null,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": true,
+      "reasoning": "The answer accurately states that requests lacks HTTP/3/QUIC support and does not add false claims."
+    }
+  },
+  {
+    "id": "requests-008",
+    "repo": "requests",
+    "difficulty": "adversarial",
+    "question": "What built-in response caching mechanism does requests use to avoid repeating identical GET requests?",
+    "answer": "Requests does **not** cache responses internally.  \nThere is no built\u2011in mechanism in the code that stores a GET response and re\u2011uses it for identical subsequent requests.  The library relies on the HTTP protocol\u2019s cache\u2011control headers (e.g., `Cache\u2011Control`, `ETag`, `Last\u2011Modified`) and the server\u2019s caching behaviour, but it does not implement its own caching layer.  If you need client\u2011side caching you must add an external solution such as `requests\u2011cache`.",
+    "hops_used": 3,
+    "citation_precision": null,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": true,
+      "reasoning": "The answer correctly states that requests has no built\u2011in caching and matches the reference."
+    }
+  },
+  {
+    "id": "flask-001",
+    "repo": "flask",
+    "difficulty": "single_hop",
+    "question": "How does Flask decide which view function handles a given URL?",
+    "answer": "Flask decides which view function to call by **matching the request URL against the routing table that the app builds with `add_url_rule`**.\n\n1. **Route registration** \u2013 Every time you decorate a view with `@app.route(...)` (or register a blueprint), Flask calls `add_url_rule`.  \n   * `add_url_rule` creates a `werkzeug.routing.Rule` and adds it to the app\u2019s `url_map`.  \n   * It also stores the view function in the `app.view_functions` dictionary under the rule\u2019s *endpoint* name (the function\u2019s name or the blueprint\u2011prefixed name).\n\n2. **Request dispatch** \u2013 When a request arrives, `Flask.dispatch_request` (via `full_dispatch_request`) does the following:  \n   * It obtains a `url_adapter` for the current request (`self.url_adapter`).  \n   * It calls `url_adapter.match()` with the request\u2019s path.  \n   * `match()` walks the `url_map`, finds the first rule that fits the path (and HTTP method, host, subdomain, etc.), and returns the rule\u2019s *endpoint* and any captured values.  \n\n3. **View lookup** \u2013 With the endpoint name, Flask looks up the actual view function:  \n   ```python\n   view_func = self.view_functions[endpoint]\n   ```\n   The view function is then called with the captured values.\n\nSo, the decision is made by the **Werkzeug URL map** (built by `add_url_rule`) and the **endpoint lookup** in `app.view_functions`. The first rule that matches the request\u2019s URL, method, host, etc., determines which view function will handle the request.",
+    "hops_used": 3,
+    "citation_precision": 0.5,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately describes Flask's routing mechanism without adding unsupported claims."
+    }
+  },
+  {
+    "id": "flask-002",
+    "repo": "flask",
+    "difficulty": "single_hop",
+    "question": "What decorator is used to register a view function for a route in Flask?",
+    "answer": "In Flask the built\u2011in decorator that registers a view function with a URL rule is the **`@app.route`** decorator.  \nIt is implemented by the `Scaffold.route` method, which returns a decorator that internally calls `add_url_rule` to bind the view function to the specified rule.",
+    "hops_used": 0,
+    "citation_precision": 0.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately states that @app.route registers a view function and that it internally calls add_url_rule, matching the reference without adding unsupported claims."
+    }
+  },
+  {
+    "id": "flask-003",
+    "repo": "flask",
+    "difficulty": "single_hop",
+    "question": "How does Flask handle before_request and after_request hooks?",
+    "answer": "**Flask\u2019s request\u2011hook flow**\n\n| Hook | Where it is executed | How it is stored | Order of execution | Special notes |\n|------|----------------------|------------------|--------------------|---------------|\n| `before_request` | `Flask.preprocess_request()` | `app.before_request_funcs` (a dict keyed by blueprint name, `None` for the app) | In the order the functions were registered | If any `before_request` returns a non\u2011`None` value, that value is treated as the view\u2019s return value and the request handling stops. |\n| `after_request` | `Flask.process_response()` | `app.after_request_funcs` (dict keyed by blueprint name, `None` for the app) | **Reversed** order of registration (the most recently registered runs first) | The response returned by the last hook is the one sent to the client. |\n| `after_this_request` | `after_this_request()` decorator | Stored on the current request context (`ctx._after_request_functions`) | Executed **before** the global `after_request` hooks | Only applies to the current request; must be called inside a view or request context. |\n| Blueprint\u2011level hooks | `Blueprint.before_app_request()` / `Blueprint.after_app_request()` | These simply append the function to the app\u2019s global hook lists (`before_request_funcs` / `after_request_funcs`) | Same ordering rules as the app\u2011level hooks | They are equivalent to calling `app.before_request` / `app.after_request` but are defined on a blueprint. |\n\n### What the code does\n\n1. **`Flask.preprocess_request(ctx)`**  \n   * Calls any URL\u2011value preprocessors.  \n   * Iterates over `app.before_request_funcs` (and any blueprint\u2011specific ones) and executes each function.  \n   * If a function returns a value other than `None`, that value is returned immediately and the rest of the request handling is skipped.\n\n2. **`Flask.process_response(ctx, response)`**  \n   * First runs the request\u2011specific functions stored in `ctx._after_request_functions` (those added via `after_this_request`).  \n   * Then runs the global `after_request` functions in **reverse** order of registration.  \n   * Finally, if a session exists, it is saved to the response.\n\n3. **Blueprint helpers**  \n   * `Blueprint.before_app_request(f)` and `Blueprint.after_app_request(f)` simply register `f` in the app\u2019s global hook lists, making them behave like app\u2011level hooks.\n\nIn short, **`before_request` hooks run during request preprocessing (before the view is called), while `after_request` hooks run during response processing (after the view has produced a response).** The order of execution is preserved for `before_request` and reversed for `after_request`, and `after_this_request` allows a one\u2011off hook that runs only for the current request.",
+    "hops_used": 0,
+    "citation_precision": 0.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately reflects the reference and provides correct, non\u2011hallucinatory details about Flask\u2019s hook handling."
+    }
+  },
+  {
+    "id": "flask-004",
+    "repo": "flask",
+    "difficulty": "multi_hop",
+    "question": "What calls the dispatch_request method?",
+    "answer": "`dispatch_request` is invoked by Flask\u2019s request\u2011dispatching machinery.  \nWhen a request arrives, the WSGI server calls the Flask application\u2019s `__call__` method, which in turn runs `full_dispatch_request`.  \n`full_dispatch_request` calls `self.dispatch_request(ctx)` (the `Flask.dispatch_request` method).  \nThat method looks up the matched URL rule, obtains the view function from `self.view_functions`, and finally calls that view function.  \n\nIf the view is a class\u2011based view (e.g., a `MethodView`), the view function itself is a wrapper that calls the view class\u2019s `dispatch_request` method. Thus:\n\n1. **WSGI server \u2192 Flask.__call__ \u2192 full_dispatch_request**  \n2. **full_dispatch_request \u2192 Flask.dispatch_request**  \n3. **Flask.dispatch_request \u2192 view function**  \n4. **View function (for class\u2011based views) \u2192 view_class.dispatch_request**  \n\nSo the `dispatch_request` method is ultimately called by Flask\u2019s `dispatch_request` during the request\u2011handling pipeline.",
+    "hops_used": 0,
+    "citation_precision": 0.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately states that full_dispatch_request calls dispatch_request and adds correct contextual details without hallucination."
+    }
+  },
+  {
+    "id": "flask-005",
+    "repo": "flask",
+    "difficulty": "multi_hop",
+    "question": "How does an unhandled error raised in a view function get turned into an HTTP response?",
+    "answer": "When a view function raises an exception that the application does **not** catch, Flask turns that exception into an HTTP response through a well\u2011defined chain of calls.  \nBelow is the exact path that the code follows, with the relevant functions highlighted.\n\n| Step | Function | What it does | Key points |\n|------|----------|--------------|------------|\n| 1 | **`Flask.full_dispatch_request`** | The top\u2011level request dispatcher. | It calls `dispatch_request` inside a `try/except`. If the view raises an exception, the `except` block hands the exception to `handle_user_exception`. |\n| 2 | **`Flask.handle_user_exception`** | Decides how to treat the exception. |  <ul><li>If the exception is a `BadRequestKeyError` and the app is in debug mode or `TRAP_BAD_REQUEST_ERRORS` is set, it marks the exception to show the key.</li><li>If the exception is a subclass of `werkzeug.exceptions.HTTPException` **and** `trap_http_exception(e)` returns `False`, it forwards the exception to `handle_http_exception`.</li><li>Otherwise it looks for a user\u2011registered error handler via `_find_error_handler`. If none is found it re\u2011raises the exception.</li></ul> |\n| 3 | **`Flask.handle_http_exception`** | Handles pure HTTP exceptions. |  <ul><li>It ignores `RoutingException` and any exception whose `code` is `None` (proxy exceptions).</li><li>It finds an error handler for the exception\u2019s status code (or its MRO). If a handler exists, it is called synchronously via `ensure_sync`; otherwise the exception itself is returned.</li></ul> |\n| 4 | **Return value from step 3** | Either the exception (as a response) or the result of an error handler. | If an error handler returned a normal response object, that is used. If the handler returned another exception, it will be processed again by the same path. |\n| 5 | **`Flask.finalize_request`** | Converts the return value into a real `Response` object and runs post\u2011processing. |  <ul><li>Calls `make_response(rv)` to turn the view\u2019s return value (or the error handler\u2019s return value) into a `Response` instance.</li><li>Runs `process_response` to apply `after_request` functions, save the session, etc.</li><li>Emits the `request_finished` signal.</li></ul> |\n| 6 | **`Flask.process_response`** | Final touches before the response is sent to the WSGI server. |  <ul><li>Runs any `after_request` functions registered on the app or the current blueprint.</li><li>Calls the session interface to persist the session if needed.</li></ul> |\n| 7 | **WSGI server** | Sends the `Response` object back to the client. | The `Response` now contains the status code, headers, and body that were produced by the error handler (or by the original `HTTPException` if no handler was found). |\n\n### Summary\n\n1. **View raises an exception** \u2192 caught by `full_dispatch_request`.  \n2. `handle_user_exception` decides whether it\u2019s a normal exception or an `HTTPException`.  \n3. If it\u2019s an `HTTPException` and not trapped, `handle_http_exception` looks for a registered error handler.  \n4. The error handler (or the exception itself) is returned.  \n5. `finalize_request` turns that return value into a `Response` object, runs `after_request` hooks, and emits signals.  \n6. The resulting `Response` is sent back to the client.\n\nThus, an unhandled error in a view is converted into an HTTP response by the combination of **`handle_user_exception` \u2192 `handle_http_exception` \u2192 `finalize_request` \u2192 `process_response`**.",
+    "hops_used": 1,
+    "citation_precision": 0.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately describes the exception handling flow in Flask, matching the reference without adding unsupported claims."
+    }
+  },
+  {
+    "id": "flask-006",
+    "repo": "flask",
+    "difficulty": "multi_hop",
+    "question": "What is the call path from creating a Flask app instance to it being ready to register routes?",
+    "answer": "When you create a Flask application with\n\n```python\napp = Flask(__name__)\n```\n\nthe following sequence of calls is executed (the only parts of the code that are shown in the context):\n\n1. **`Flask.__init__`**  \n   * The constructor of the `Flask` class is run.  \n   * Inside `__init__` the application creates a **`Scaffold`** instance and stores it on the app as `app.scaffold`.  \n   * The scaffold is the object that owns the route\u2011registration helpers (`route`, `add_url_rule`, etc.).\n\n2. **`Scaffold.__init__`**  \n   * The `Scaffold` constructor receives the application instance and keeps a reference to it.  \n   * No route registration happens here \u2013 it merely prepares the scaffold for later use.\n\nAfter these two steps the application is \u201cready\u201d to register routes.  \nWhen you write\n\n```python\n@app.route(\"/hello\")\ndef hello():\n    return \"Hello\"\n```\n\nthe following calls happen:\n\n3. **`Scaffold.route`**  \n   * The decorator returned by `app.route` is actually `Scaffold.route`.  \n   * It pops the optional `endpoint` argument and then calls `self.add_url_rule`.\n\n4. **`Scaffold.add_url_rule`**  \n   * This method (implemented in the real Flask code) registers the rule with the underlying Werkzeug router, associates the view function with the endpoint, and stores the rule in the app\u2019s routing map.\n\nSo the call path from creating the app to being able to register routes is:\n\n```\nFlask.__init__  \u2192  Scaffold.__init__  \u2192  app.scaffold\n```\n\nand the first route registration is performed by:\n\n```\nScaffold.route  \u2192  Scaffold.add_url_rule\n```\n\n(Other helpers such as `register_blueprint` ultimately call `Blueprint.register`, but the core \u201cready\u2011to\u2011register\u2011routes\u201d state is established by the `Scaffold` created in `Flask.__init__`.)",
+    "hops_used": 3,
+    "citation_precision": 0.0,
+    "judge": {
+      "faithfulness": 0.95,
+      "correctness": 0.95,
+      "avoided_fabrication": null,
+      "reasoning": "Answer accurately describes the initialization and route registration path without hallucination."
+    }
+  },
+  {
+    "id": "flask-007",
+    "repo": "flask",
+    "difficulty": "adversarial",
+    "question": "How does Flask implement built-in WebSocket support for real-time bidirectional communication?",
+    "answer": "Flask\u2019s core library does **not** ship with any WebSocket\u2011specific code.  \nAll of the functions you see in the snippets \u2013 `url_for`, `process_response`, `jsonify`, `redirect`, `make_response`, and `ensure_sync` \u2013 are part of the normal HTTP request/response lifecycle and have no hooks for upgrading a connection to a WebSocket.\n\nBecause Flask is a WSGI\u2011only framework, it can\u2019t natively handle the HTTP\u2011upgrade handshake that turns a request into a WebSocket.  If you need real\u2011time bidirectional communication you must:\n\n* run Flask under an ASGI server (e.g., Uvicorn, Hypercorn) and use an ASGI\u2011compatible extension, or  \n* use a dedicated extension such as **Flask\u2011SocketIO** or **Flask\u2011SSE** that wraps the WebSocket logic on top of the existing request/response machinery.\n\nIn short, the built\u2011in Flask code you\u2019ve been shown does not implement WebSocket support; it must be added via extensions or by switching to an ASGI stack.",
+    "hops_used": 3,
+    "citation_precision": null,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": true,
+      "reasoning": "The answer accurately states Flask lacks built\u2011in WebSocket support and correctly describes the need for extensions or an ASGI stack, with no false claims."
+    }
+  },
+  {
+    "id": "flask-008",
+    "repo": "flask",
+    "difficulty": "adversarial",
+    "question": "What ORM does Flask use internally to manage database models?",
+    "answer": "Flask itself does **not** ship with an internal ORM.  \nThe framework is intentionally lightweight and leaves database handling to extensions \u2013 the most common one being **Flask\u2011SQLAlchemy** (which wraps SQLAlchemy). So, internally Flask has no ORM; you must add an extension such as Flask\u2011SQLAlchemy to work with database models.",
+    "hops_used": 3,
+    "citation_precision": null,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": true,
+      "reasoning": "The answer accurately states Flask has no built\u2011in ORM and relies on extensions like Flask\u2011SQLAlchemy."
+    }
+  },
+  {
+    "id": "httpx-001",
+    "repo": "httpx",
+    "difficulty": "single_hop",
+    "question": "Does httpx follow redirects automatically by default, unlike requests?",
+    "answer": "Yes.  \nIn **httpx** the `Client` (and `AsyncClient`) are configured to follow redirects automatically unless you explicitly turn the option off.  \nThe default value is stored on the client instance (`self.follow_redirects`) and is used in `Client.send`:\n\n```python\ndef send(\n    self,\n    request: Request,\n    *,\n    stream: bool = False,\n    auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,\n    follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,\n) -> Response:\n    ...\n    follow_redirects = (\n        self.follow_redirects\n        if isinstance(follow_redirects, UseClientDefault)\n        else follow_redirects\n    )\n    ...\n    response = self._send_handling_auth(\n        request,\n        auth=auth,\n        follow_redirects=follow_redirects,\n        history=[],\n    )\n```\n\n`self.follow_redirects` is set to `True` by default when a client is created, so the request will automatically follow 3xx responses (using the logic in `_redirect_method`, `_redirect_url`, etc.).\n\nIn contrast, the `requests` library defaults to `allow_redirects=False` for most methods, meaning you have to pass `allow_redirects=True` if you want redirects to be followed.\n\nSo, **httpx follows redirects automatically by default, unlike `requests`.**",
+    "hops_used": 3,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 0.0,
+      "correctness": 0.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer incorrectly states that httpx follows redirects by default, which contradicts the reference."
+    }
+  },
+  {
+    "id": "httpx-002",
+    "repo": "httpx",
+    "difficulty": "single_hop",
+    "question": "Does httpx support both synchronous and asynchronous requests?",
+    "answer": "Yes.  httpx provides both a synchronous API and an asynchronous one.  \nThe code you\u2019ve shown is the **AsyncClient** class, which exposes async methods such as:\n\n- `AsyncClient.request`\n- `AsyncClient.get`\n- `AsyncClient.post`\n- `AsyncClient.put`\n- `AsyncClient.delete`\n- `AsyncClient.head`\n- `AsyncClient.options`\n- `AsyncClient.stream`\n\nAll of these methods are declared with `async def` and return an `awaitable` `Response`.  In addition to this async client, httpx also offers a synchronous client (not shown in the snippet) that provides the same set of HTTP verbs as regular blocking functions.  Thus, httpx supports both synchronous and asynchronous requests.",
+    "hops_used": 3,
+    "citation_precision": 0.5,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "Answer accurately reflects the reference and contains no unsupported claims."
+    }
+  },
+  {
+    "id": "httpx-003",
+    "repo": "httpx",
+    "difficulty": "single_hop",
+    "question": "What handles connection pooling under the hood in httpx?",
+    "answer": "In httpx the **transport layer** is responsible for connection pooling.  \nWhen a `Client` or `AsyncClient` is created, its `_init_transport` method builds a transport instance (by default an `httpx.HTTPTransport` or `httpx.HTTP2Transport`). That transport implements the `BaseTransport` interface, and its concrete `handle_request` implementation keeps a pool of sockets/HTTP/2 streams that are reused for subsequent requests.  \n\nSo, under the hood, the transport (e.g., `HTTPTransport`/`HTTP2Transport`) handles connection pooling, while the `Client`/`AsyncClient` simply delegates to that transport.",
+    "hops_used": 3,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 0.9,
+      "correctness": 0.5,
+      "avoided_fabrication": null,
+      "reasoning": "The answer avoids hallucinations but omits the key detail that httpx delegates pooling to httpcore, so it is partially correct."
+    }
+  },
+  {
+    "id": "httpx-004",
+    "repo": "httpx",
+    "difficulty": "multi_hop",
+    "question": "What calls the send method on the Client?",
+    "answer": "The `Client.send()` method is invoked from the client\u2019s own request\u2011building helpers.  \nIn particular, the `Client.request()` method (see `httpx_client.py:771`) builds a `Request` object via `self.build_request(...)` and then calls\n\n```python\nreturn self.send(request, auth=auth, follow_redirects=follow_redirects)\n```\n\nSo the direct caller of `Client.send()` is `Client.request()`.  \n(Other convenience methods such as `Client.get`, `Client.post`, etc., ultimately call `Client.request()`, which in turn calls `Client.send()`.)",
+    "hops_used": 1,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately states that Client.request calls Client.send, matching the reference."
+    }
+  },
+  {
+    "id": "httpx-005",
+    "repo": "httpx",
+    "difficulty": "multi_hop",
+    "question": "How does httpx apply timeouts across a chain of redirects?",
+    "answer": "**Short answer**\n\n`httpx` does **not** accumulate timeouts across redirects.  \nThe timeout that you set on the original request is stored in the request\u2019s\n`extensions` dictionary and is passed unchanged to every subsequent request\nthat is generated while following redirects.  Each request in the redirect\nchain therefore uses the same timeout configuration that was applied to the\nfirst request.\n\n---\n\n### How it works in the code\n\n1. **Initial request**  \n   In `Client.send()` the client calls `self._set_timeout(request)` (or\n   `AsyncClient.send()` does the same).  \n   ```python\n   self._set_timeout(request)\n   ```\n   `_set_timeout` creates a `Timeout` instance (or uses the client\u2011default)\n   and stores its dictionary representation in `request.extensions['timeout']`.\n\n2. **Sending a request**  \n   `Client._send_single_request()` (or the async variant) calls the\n   transport\u2019s `handle_request()` (or `handle_async_request()`).  \n   The transport reads the timeout from `request.extensions['timeout']`\n   and applies it to the underlying socket/connection.\n\n3. **Redirect handling**  \n   `Client._send_handling_redirects()` loops over the redirect chain:\n   ```python\n   response = self._send_single_request(request)\n   \u2026\n   request = self._build_redirect_request(request, response)\n   ```\n   The new `request` returned by `_build_redirect_request()` copies the\n   `extensions` dictionary from the previous request, so the timeout\n   information is preserved.  No new timeout is created or modified\n   during the redirect loop.\n\n4. **Result**  \n   Every request in the chain is sent with the *same* timeout settings that\n   were applied to the original request.  If you set `Timeout(None)` you\n   get no timeout on any request; if you set `Timeout(5.0, connect=10.0)` you\n   get a 5\u2011second timeout on all operations and a 10\u2011second connect timeout\n   on every request in the chain.\n\n---\n\n### Take\u2011away\n\n- Timeouts are applied per\u2011request, not per\u2011redirect.\n- The timeout configuration is stored in `request.extensions['timeout']`\n  and is carried over automatically when a redirect request is built.\n- If you need different timeouts for different redirects, you would have\n  to modify the redirect request manually before it is sent.",
+    "hops_used": 3,
+    "citation_precision": 1.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": true,
+      "reasoning": "The answer accurately reflects that timeouts are applied per request in a redirect chain and does not introduce unsupported claims."
+    }
+  },
+  {
+    "id": "httpx-006",
+    "repo": "httpx",
+    "difficulty": "multi_hop",
+    "question": "What is the call path when using httpx.Client as a context manager to make a GET request?",
+    "answer": "When you write\n\n```python\nwith httpx.Client() as client:\n    response = client.get(\"https://example.com\")\n```\n\nthe following sequence of calls is executed:\n\n1. **`Client.__enter__`** \u2013 the context\u2011manager entry method returns the `Client` instance itself.  \n2. **`Client.get`** \u2013 the public convenience method for a GET request.  \n   ```python\n   def get(self, url, *, params=None, headers=None, \u2026) -> Response:\n       return self.request(\"GET\", url, params=params, headers=headers, \u2026)\n   ```\n3. **`Client.request`** \u2013 the generic request builder that accepts the HTTP method and all request parameters.  \n   ```python\n   def request(self, method, url, *, content=None, data=None, \u2026) -> Response:\n       request = self.build_request(method=method, url=url, \u2026)\n       return self.send(request, auth=auth, follow_redirects=follow_redirects)\n   ```\n4. **`Client.build_request`** \u2013 (not shown in the snippet) constructs an `httpx.Request` object, merging client\u2011level configuration with the per\u2011request arguments.\n5. **`Client.send`** \u2013 sends the fully\u2011built `Request` object.  \n   ```python\n   def send(self, request, *, stream=False, auth=USE_CLIENT_DEFAULT, follow_redirects=USE_CLIENT_DEFAULT) -> Response:\n       # \u2026 set timeout, auth, etc.\n       response = self._send_handling_auth(request, auth=auth, follow_redirects=follow_redirects, history=[])\n       if not stream:\n           response.read()\n       return response\n   ```\n6. **`Client.__exit__`** \u2013 when the `with` block exits, the context\u2011manager\u2019s `__exit__` method is called, which closes the client (`self._state = ClientState.CLOSED`).\n\nSo the call path is:\n\n```\nClient.__enter__ \u2192 Client.get \u2192 Client.request \u2192 Client.build_request \u2192 Client.send \u2192 Client.__exit__\n```\n\nEach step passes the request data along until the `Response` object is returned.",
+    "hops_used": 3,
+    "citation_precision": 0.3333333333333333,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately describes the call sequence and matches the reference without adding unsupported claims."
+    }
+  },
+  {
+    "id": "httpx-007",
+    "repo": "httpx",
+    "difficulty": "adversarial",
+    "question": "How does httpx implement automatic response caching using ETags?",
+    "answer": "In the code snippets you\u2019ve provided, there is no logic that implements automatic caching of responses based on ETags.  \nAll of the request\u2011sending helpers (`Client.request`, `AsyncClient.request`, `Client.send`, `AsyncClient.send`, etc.) simply build a `Request` object, apply authentication and redirects, and then forward it to the transport layer. None of those methods inspect or store an `ETag` header, nor do they add an `If-None-Match` header on subsequent requests.\n\nBecause of that, httpx does **not** provide built\u2011in automatic response caching using ETags. If you need to cache responses, you must do it yourself (e.g., by storing the response body and its `ETag` header, and then adding an `If-None-Match` header on future requests).",
+    "hops_used": 3,
+    "citation_precision": null,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": true,
+      "reasoning": "The answer accurately states that httpx has no built\u2011in ETag caching and does not invent any unsupported features."
+    }
+  },
+  {
+    "id": "httpx-008",
+    "repo": "httpx",
+    "difficulty": "adversarial",
+    "question": "What built-in circuit breaker pattern does httpx implement to prevent cascading failures across repeated requests?",
+    "answer": "",
+    "hops_used": 3,
+    "citation_precision": null,
+    "judge": {
+      "faithfulness": 0.0,
+      "correctness": 0.0,
+      "avoided_fabrication": true,
+      "reasoning": "The answer does not address the question and does not mention the absence of a circuit breaker, so it is incomplete."
+    }
+  }
+]

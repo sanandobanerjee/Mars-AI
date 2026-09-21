@@ -1,0 +1,122 @@
+[
+  {
+    "id": "flask-001",
+    "repo": "flask",
+    "difficulty": "single_hop",
+    "question": "How does Flask decide which view function handles a given URL?",
+    "answer": "Flask decides which view function to call by **matching the request URL against the routing table that the app builds with `add_url_rule`**.\n\n1. **Route registration** \u2013 Every time you decorate a view with `@app.route(...)` (or register a blueprint), Flask calls `add_url_rule`.  \n   * `add_url_rule` creates a `werkzeug.routing.Rule` and adds it to the app\u2019s `url_map`.  \n   * It also stores the view function in the `app.view_functions` dictionary under the rule\u2019s *endpoint* name (the function\u2019s name or the blueprint\u2011prefixed name).\n\n2. **Request dispatch** \u2013 When a request arrives, `Flask.dispatch_request` (via `full_dispatch_request`) does the following:  \n   * It obtains a `url_adapter` for the current request (`self.url_adapter`).  \n   * It calls `url_adapter.match()` with the request\u2019s path.  \n   * `match()` walks the `url_map`, finds the first rule that fits the path (and HTTP method, host, subdomain, etc.), and returns the rule\u2019s *endpoint* and any captured values.  \n\n3. **View lookup** \u2013 With the endpoint name, Flask looks up the actual view function:  \n   ```python\n   view_func = self.view_functions[endpoint]\n   ```\n   The view function is then called with the captured values.\n\nSo, the decision is made by the **Werkzeug URL map** (built by `add_url_rule`) and the **endpoint lookup** in `app.view_functions`. The first rule that matches the request\u2019s URL, method, host, etc., determines which view function will handle the request.",
+    "hops_used": 3,
+    "citation_precision": 0.5,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately describes Flask's routing mechanism without adding unsupported claims."
+    }
+  },
+  {
+    "id": "flask-002",
+    "repo": "flask",
+    "difficulty": "single_hop",
+    "question": "What decorator is used to register a view function for a route in Flask?",
+    "answer": "In Flask the built\u2011in decorator that registers a view function with a URL rule is the **`@app.route`** decorator.  \nIt is implemented by the `Scaffold.route` method, which returns a decorator that internally calls `add_url_rule` to bind the view function to the specified rule.",
+    "hops_used": 0,
+    "citation_precision": 0.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately states that @app.route registers a view function and that it internally calls add_url_rule, matching the reference without adding unsupported claims."
+    }
+  },
+  {
+    "id": "flask-003",
+    "repo": "flask",
+    "difficulty": "single_hop",
+    "question": "How does Flask handle before_request and after_request hooks?",
+    "answer": "**Flask\u2019s request\u2011hook flow**\n\n| Hook | Where it is executed | How it is stored | Order of execution | Special notes |\n|------|----------------------|------------------|--------------------|---------------|\n| `before_request` | `Flask.preprocess_request()` | `app.before_request_funcs` (a dict keyed by blueprint name, `None` for the app) | In the order the functions were registered | If any `before_request` returns a non\u2011`None` value, that value is treated as the view\u2019s return value and the request handling stops. |\n| `after_request` | `Flask.process_response()` | `app.after_request_funcs` (dict keyed by blueprint name, `None` for the app) | **Reversed** order of registration (the most recently registered runs first) | The response returned by the last hook is the one sent to the client. |\n| `after_this_request` | `after_this_request()` decorator | Stored on the current request context (`ctx._after_request_functions`) | Executed **before** the global `after_request` hooks | Only applies to the current request; must be called inside a view or request context. |\n| Blueprint\u2011level hooks | `Blueprint.before_app_request()` / `Blueprint.after_app_request()` | These simply append the function to the app\u2019s global hook lists (`before_request_funcs` / `after_request_funcs`) | Same ordering rules as the app\u2011level hooks | They are equivalent to calling `app.before_request` / `app.after_request` but are defined on a blueprint. |\n\n### What the code does\n\n1. **`Flask.preprocess_request(ctx)`**  \n   * Calls any URL\u2011value preprocessors.  \n   * Iterates over `app.before_request_funcs` (and any blueprint\u2011specific ones) and executes each function.  \n   * If a function returns a value other than `None`, that value is returned immediately and the rest of the request handling is skipped.\n\n2. **`Flask.process_response(ctx, response)`**  \n   * First runs the request\u2011specific functions stored in `ctx._after_request_functions` (those added via `after_this_request`).  \n   * Then runs the global `after_request` functions in **reverse** order of registration.  \n   * Finally, if a session exists, it is saved to the response.\n\n3. **Blueprint helpers**  \n   * `Blueprint.before_app_request(f)` and `Blueprint.after_app_request(f)` simply register `f` in the app\u2019s global hook lists, making them behave like app\u2011level hooks.\n\nIn short, **`before_request` hooks run during request preprocessing (before the view is called), while `after_request` hooks run during response processing (after the view has produced a response).** The order of execution is preserved for `before_request` and reversed for `after_request`, and `after_this_request` allows a one\u2011off hook that runs only for the current request.",
+    "hops_used": 0,
+    "citation_precision": 0.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately reflects the reference and provides correct, non\u2011hallucinatory details about Flask\u2019s hook handling."
+    }
+  },
+  {
+    "id": "flask-004",
+    "repo": "flask",
+    "difficulty": "multi_hop",
+    "question": "What calls the dispatch_request method?",
+    "answer": "`dispatch_request` is invoked by Flask\u2019s request\u2011dispatching machinery.  \nWhen a request arrives, the WSGI server calls the Flask application\u2019s `__call__` method, which in turn runs `full_dispatch_request`.  \n`full_dispatch_request` calls `self.dispatch_request(ctx)` (the `Flask.dispatch_request` method).  \nThat method looks up the matched URL rule, obtains the view function from `self.view_functions`, and finally calls that view function.  \n\nIf the view is a class\u2011based view (e.g., a `MethodView`), the view function itself is a wrapper that calls the view class\u2019s `dispatch_request` method. Thus:\n\n1. **WSGI server \u2192 Flask.__call__ \u2192 full_dispatch_request**  \n2. **full_dispatch_request \u2192 Flask.dispatch_request**  \n3. **Flask.dispatch_request \u2192 view function**  \n4. **View function (for class\u2011based views) \u2192 view_class.dispatch_request**  \n\nSo the `dispatch_request` method is ultimately called by Flask\u2019s `dispatch_request` during the request\u2011handling pipeline.",
+    "hops_used": 0,
+    "citation_precision": 0.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately states that full_dispatch_request calls dispatch_request and adds correct contextual details without hallucination."
+    }
+  },
+  {
+    "id": "flask-005",
+    "repo": "flask",
+    "difficulty": "multi_hop",
+    "question": "How does an unhandled error raised in a view function get turned into an HTTP response?",
+    "answer": "When a view function raises an exception that the application does **not** catch, Flask turns that exception into an HTTP response through a well\u2011defined chain of calls.  \nBelow is the exact path that the code follows, with the relevant functions highlighted.\n\n| Step | Function | What it does | Key points |\n|------|----------|--------------|------------|\n| 1 | **`Flask.full_dispatch_request`** | The top\u2011level request dispatcher. | It calls `dispatch_request` inside a `try/except`. If the view raises an exception, the `except` block hands the exception to `handle_user_exception`. |\n| 2 | **`Flask.handle_user_exception`** | Decides how to treat the exception. |  <ul><li>If the exception is a `BadRequestKeyError` and the app is in debug mode or `TRAP_BAD_REQUEST_ERRORS` is set, it marks the exception to show the key.</li><li>If the exception is a subclass of `werkzeug.exceptions.HTTPException` **and** `trap_http_exception(e)` returns `False`, it forwards the exception to `handle_http_exception`.</li><li>Otherwise it looks for a user\u2011registered error handler via `_find_error_handler`. If none is found it re\u2011raises the exception.</li></ul> |\n| 3 | **`Flask.handle_http_exception`** | Handles pure HTTP exceptions. |  <ul><li>It ignores `RoutingException` and any exception whose `code` is `None` (proxy exceptions).</li><li>It finds an error handler for the exception\u2019s status code (or its MRO). If a handler exists, it is called synchronously via `ensure_sync`; otherwise the exception itself is returned.</li></ul> |\n| 4 | **Return value from step 3** | Either the exception (as a response) or the result of an error handler. | If an error handler returned a normal response object, that is used. If the handler returned another exception, it will be processed again by the same path. |\n| 5 | **`Flask.finalize_request`** | Converts the return value into a real `Response` object and runs post\u2011processing. |  <ul><li>Calls `make_response(rv)` to turn the view\u2019s return value (or the error handler\u2019s return value) into a `Response` instance.</li><li>Runs `process_response` to apply `after_request` functions, save the session, etc.</li><li>Emits the `request_finished` signal.</li></ul> |\n| 6 | **`Flask.process_response`** | Final touches before the response is sent to the WSGI server. |  <ul><li>Runs any `after_request` functions registered on the app or the current blueprint.</li><li>Calls the session interface to persist the session if needed.</li></ul> |\n| 7 | **WSGI server** | Sends the `Response` object back to the client. | The `Response` now contains the status code, headers, and body that were produced by the error handler (or by the original `HTTPException` if no handler was found). |\n\n### Summary\n\n1. **View raises an exception** \u2192 caught by `full_dispatch_request`.  \n2. `handle_user_exception` decides whether it\u2019s a normal exception or an `HTTPException`.  \n3. If it\u2019s an `HTTPException` and not trapped, `handle_http_exception` looks for a registered error handler.  \n4. The error handler (or the exception itself) is returned.  \n5. `finalize_request` turns that return value into a `Response` object, runs `after_request` hooks, and emits signals.  \n6. The resulting `Response` is sent back to the client.\n\nThus, an unhandled error in a view is converted into an HTTP response by the combination of **`handle_user_exception` \u2192 `handle_http_exception` \u2192 `finalize_request` \u2192 `process_response`**.",
+    "hops_used": 1,
+    "citation_precision": 0.0,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": null,
+      "reasoning": "The answer accurately describes the exception handling flow in Flask, matching the reference without adding unsupported claims."
+    }
+  },
+  {
+    "id": "flask-006",
+    "repo": "flask",
+    "difficulty": "multi_hop",
+    "question": "What is the call path from creating a Flask app instance to it being ready to register routes?",
+    "answer": "When you create a Flask application with\n\n```python\napp = Flask(__name__)\n```\n\nthe following sequence of calls is executed (the only parts of the code that are shown in the context):\n\n1. **`Flask.__init__`**  \n   * The constructor of the `Flask` class is run.  \n   * Inside `__init__` the application creates a **`Scaffold`** instance and stores it on the app as `app.scaffold`.  \n   * The scaffold is the object that owns the route\u2011registration helpers (`route`, `add_url_rule`, etc.).\n\n2. **`Scaffold.__init__`**  \n   * The `Scaffold` constructor receives the application instance and keeps a reference to it.  \n   * No route registration happens here \u2013 it merely prepares the scaffold for later use.\n\nAfter these two steps the application is \u201cready\u201d to register routes.  \nWhen you write\n\n```python\n@app.route(\"/hello\")\ndef hello():\n    return \"Hello\"\n```\n\nthe following calls happen:\n\n3. **`Scaffold.route`**  \n   * The decorator returned by `app.route` is actually `Scaffold.route`.  \n   * It pops the optional `endpoint` argument and then calls `self.add_url_rule`.\n\n4. **`Scaffold.add_url_rule`**  \n   * This method (implemented in the real Flask code) registers the rule with the underlying Werkzeug router, associates the view function with the endpoint, and stores the rule in the app\u2019s routing map.\n\nSo the call path from creating the app to being able to register routes is:\n\n```\nFlask.__init__  \u2192  Scaffold.__init__  \u2192  app.scaffold\n```\n\nand the first route registration is performed by:\n\n```\nScaffold.route  \u2192  Scaffold.add_url_rule\n```\n\n(Other helpers such as `register_blueprint` ultimately call `Blueprint.register`, but the core \u201cready\u2011to\u2011register\u2011routes\u201d state is established by the `Scaffold` created in `Flask.__init__`.)",
+    "hops_used": 3,
+    "citation_precision": 0.0,
+    "judge": {
+      "faithfulness": 0.95,
+      "correctness": 0.95,
+      "avoided_fabrication": null,
+      "reasoning": "Answer accurately describes the initialization and route registration path without hallucination."
+    }
+  },
+  {
+    "id": "flask-007",
+    "repo": "flask",
+    "difficulty": "adversarial",
+    "question": "How does Flask implement built-in WebSocket support for real-time bidirectional communication?",
+    "answer": "Flask\u2019s core library does **not** ship with any WebSocket\u2011specific code.  \nAll of the functions you see in the snippets \u2013 `url_for`, `process_response`, `jsonify`, `redirect`, `make_response`, and `ensure_sync` \u2013 are part of the normal HTTP request/response lifecycle and have no hooks for upgrading a connection to a WebSocket.\n\nBecause Flask is a WSGI\u2011only framework, it can\u2019t natively handle the HTTP\u2011upgrade handshake that turns a request into a WebSocket.  If you need real\u2011time bidirectional communication you must:\n\n* run Flask under an ASGI server (e.g., Uvicorn, Hypercorn) and use an ASGI\u2011compatible extension, or  \n* use a dedicated extension such as **Flask\u2011SocketIO** or **Flask\u2011SSE** that wraps the WebSocket logic on top of the existing request/response machinery.\n\nIn short, the built\u2011in Flask code you\u2019ve been shown does not implement WebSocket support; it must be added via extensions or by switching to an ASGI stack.",
+    "hops_used": 3,
+    "citation_precision": null,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": true,
+      "reasoning": "The answer accurately states Flask lacks built\u2011in WebSocket support and correctly describes the need for extensions or an ASGI stack, with no false claims."
+    }
+  },
+  {
+    "id": "flask-008",
+    "repo": "flask",
+    "difficulty": "adversarial",
+    "question": "What ORM does Flask use internally to manage database models?",
+    "answer": "Flask itself does **not** ship with an internal ORM.  \nThe framework is intentionally lightweight and leaves database handling to extensions \u2013 the most common one being **Flask\u2011SQLAlchemy** (which wraps SQLAlchemy). So, internally Flask has no ORM; you must add an extension such as Flask\u2011SQLAlchemy to work with database models.",
+    "hops_used": 3,
+    "citation_precision": null,
+    "judge": {
+      "faithfulness": 1.0,
+      "correctness": 1.0,
+      "avoided_fabrication": true,
+      "reasoning": "The answer accurately states Flask has no built\u2011in ORM and relies on extensions like Flask\u2011SQLAlchemy."
+    }
+  }
+]
