@@ -136,9 +136,15 @@ class CodeAgent:
                 continue
             block = f"### {chunk.qualified_name} ({chunk.file_path}:{chunk.start_line})\n{chunk.source}"
             if total_chars + len(block) > MAX_CONTEXT_CHARS:
-                break
+                continue
             parts.append(block)
             total_chars += len(block)
+
+        if not parts and chunk_ids:
+            first_chunk= self.chunks_by_id.get(chunk_ids[0])
+            if first_chunk:
+                block=f"### {first_chunk.qualified_name} ({first_chunk.file_path}:{first_chunk.start_line})\n{first_chunk.source}"
+
         return "\n\n".join(parts)
 
     # accumulated context+ question to LLM which spits out answer 

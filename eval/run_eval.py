@@ -78,6 +78,7 @@ def run_eval_for_repo(repo_name: str, embedder: Embedder) -> Tuple[List[EvalResu
                 answer=response["answer"],
                 hops_used=response["hops_used"],
                 citation_precision=precision,
+                actual_citations=response["citations"],
                 judge=score,
             ))
         except Exception as e:

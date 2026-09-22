@@ -31,4 +31,5 @@ class EvalResult(BaseModel):
     answer: str
     hops_used: int
     citation_precision: Optional[float] = None
+    actual_citations: List[dict] = []
     judge: JudgeScore
