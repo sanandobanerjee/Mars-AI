@@ -1,0 +1,25 @@
+{
+  "total_questions": 32,
+  "by_difficulty": {
+    "single_hop": {
+      "count": 12,
+      "avg_faithfulness": 0.783,
+      "avg_correctness": 0.783,
+      "avg_citation_precision": 0.5
+    },
+    "multi_hop": {
+      "count": 12,
+      "avg_faithfulness": 0.904,
+      "avg_correctness": 0.871,
+      "avg_citation_precision": 0.528,
+      "hop_trigger_rate": 0.75
+    },
+    "adversarial": {
+      "count": 8,
+      "avg_faithfulness": 0.875,
+      "avg_correctness": 0.938,
+      "avg_citation_precision": null,
+      "fabrication_avoidance_rate": 0.875
+    }
+  }
+}
