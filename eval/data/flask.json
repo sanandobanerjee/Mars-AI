@@ -5,8 +5,8 @@
     "question": "How does Flask decide which view function handles a given URL?",
     "ground_truth": "Flask registers URL rules via add_url_rule into a Werkzeug URL map. When a request comes in, dispatch_request looks up the matched rule (bound during request context setup) and calls the corresponding view function.",
     "expected_citations": [
-      {"qualified_name": "Flask.create_url_adapter", "file_path": "src/flask/app.py"},
-      {"qualified_name": "Flask.full_dispatch_request", "file_path": "src/flask/app.py"}
+      {"qualified_name": "Flask.create_url_adapter", "file_path": "src\\flask\\app.py"},
+      {"qualified_name": "Flask.full_dispatch_request", "file_path": "src\\flask\\app.py"}
     ],
     "difficulty": "single_hop"
   },
@@ -16,7 +16,7 @@
     "question": "What decorator is used to register a view function for a route in Flask?",
     "ground_truth": "The @app.route(...) decorator registers a view function; internally it calls add_url_rule to bind the URL pattern to the function.",
     "expected_citations": [
-      {"qualified_name": "Scaffold.route", "file_path": "src/flask/sansio/scaffold.py"}
+      {"qualified_name": "Scaffold.route", "file_path": "src\\flask\\sansio\\scaffold.py"}
     ],
     "difficulty": "single_hop"
   },
@@ -26,8 +26,8 @@
     "question": "How does Flask handle before_request and after_request hooks?",
     "ground_truth": "Scaffold provides before_request/after_request decorators that register functions into per-application (or per-blueprint) lists, which are executed around view dispatch in full_dispatch_request.",
     "expected_citations": [
-      {"qualified_name": "Flask.preprocess_request", "file_path": "src/flask/app.py"},
-      {"qualified_name": "Flask.process_response", "file_path": "src/flask/app.py"}
+      {"qualified_name": "Flask.preprocess_request", "file_path": "src\\flask\\app.py"},
+      {"qualified_name": "Flask.process_response", "file_path": "src\\flask\\app.py"}
     ],
     "difficulty": "single_hop"
   },
@@ -37,8 +37,8 @@
     "question": "What calls the dispatch_request method?",
     "ground_truth": "full_dispatch_request calls dispatch_request as part of handling a request, wrapping it with pre/post-processing and error handling.",
     "expected_citations": [
-      {"qualified_name": "Flask.dispatch_request", "file_path": "src/flask/app.py"},
-      {"qualified_name": "Flask.full_dispatch_request", "file_path": "src/flask/app.py"}
+      {"qualified_name": "Flask.dispatch_request", "file_path": "src\\flask\\app.py"},
+      {"qualified_name": "Flask.full_dispatch_request", "file_path": "src\\flask\\app.py"}
     ],
     "difficulty": "multi_hop"
   },
@@ -48,9 +48,8 @@
     "question": "How does an unhandled error raised in a view function get turned into an HTTP response?",
     "ground_truth": "full_dispatch_request wraps dispatch_request in exception handling; an uncaught exception is routed through handle_user_exception, which checks for registered error handlers (via errorhandler) before falling back to a default error response.",
     "expected_citations": [
-      {"qualified_name": "Flask.handle_user_exception", "file_path": "src/flask/app.py"},
-      {"qualified_name": "Flask.handle_http_exception", "file_path": "src/flask/app.py"},
-      {"qualified_name": "Flask.finalize_request", "file_path": "src/flask/app.py"}
+      {"qualified_name": "Flask.handle_user_exception", "file_path": "src\\flask\\app.py"},
+      {"qualified_name": "App.trap_http_exception", "file_path": "src\\flask\\sansio\\app.py"}
     ],
     "difficulty": "multi_hop"
   },
@@ -60,8 +59,8 @@
     "question": "What is the call path from creating a Flask app instance to it being ready to register routes?",
     "ground_truth": "Flask's App.__init__ (via the Scaffold base) sets up internal registries (URL map, config, extensions) so that subsequent calls to add_url_rule/route can register view functions.",
     "expected_citations": [
-      {"qualified_name": "Scaffold.route", "file_path": "src/flask/sansio/scaffold.py"},
-      {"qualified_name": "Scaffold.add_url_rule", "file_path": "src/flask/sansio/scaffold.py"}
+      {"qualified_name": "Scaffold.route", "file_path": "src\\flask\\sansio\\scaffold.py"},
+      {"qualified_name": "Scaffold.add_url_rule", "file_path": "src\\flask\\sansio\\scaffold.py"}
     ],
     "difficulty": "multi_hop"
   },
