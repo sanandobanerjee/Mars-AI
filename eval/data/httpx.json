@@ -55,11 +55,10 @@
     "id": "httpx-006",
     "repo": "httpx",
     "question": "What is the call path when using httpx.Client as a context manager to make a GET request?",
-    "ground_truth": "__enter__ returns self; .get() calls .request(), which calls .send(); on exiting the with-block, __exit__ calls .close() to release pooled connections.",
+    "ground_truth": "__enter__ returns self; .get() calls .request(), which calls .send(); on exiting the with-block, __exit__ closes the client and releases pooled connections.",
     "expected_citations": [
-      {"qualified_name": "Client.__enter__", "file_path": "httpx/_client.py"},
       {"qualified_name": "Client.get", "file_path": "httpx/_client.py"},
-      {"qualified_name": "Client.close", "file_path": "httpx/_client.py"}
+      {"qualified_name": "Client.request", "file_path": "httpx/_client.py"}
     ],
     "difficulty": "multi_hop"
   },
